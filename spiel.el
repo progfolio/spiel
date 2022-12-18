@@ -36,166 +36,216 @@
   "Whether or not to display messages with an animation."
   :type 'boolean)
 
-(defcustom spiel--verbs '(("look" "inspect")
-                          ("go" "walk" "move" "run")
-                          ("take" "get" "grab")
-                          ("use" "give"))
+(defcustom spiel-verbs '(("look" "inspect")
+                         ("go" "walk" "move" "run")
+                         ("take" "get" "grab")
+                         ("use" "give"))
   "List of verb lists. Each element in the sublists are synonymous actions."
   :type 'alist)
 
-(defcustom spiel--global-commands '(("inventory" . spiel--print-inventory)
-                                    ("look" . spiel--print-room-description)
-                                    ("status" . spiel--print-status)
-                                    ("reset" . spiel--reset)
-                                    ("quit" . spiel-quit)
-                                    ("help" . spiel-help))
+(defcustom spiel-global-commands '(("inventory" . spiel--print-inventory)
+                                   ("look" . spiel--print-room-description)
+                                   ("status" . spiel--print-status)
+                                   ("reset" . spiel--reset)
+                                   ("quit" . spiel-quit)
+                                   ("help" . spiel-help))
   "Alist of global player commands."
   :type 'alist)
+
+(defcustom spiel-inventory-message-format "Your inventory contains: %s"
+  "Format string with one %s specifier used for printing inventory."
+  :type 'string)
+
+(defcustom spiel-inventory-empty-message "Your inventory is empty."
+  "Message displayed when inventory is empty."
+  :type 'string)
 
 (defface spiel-command
   '((t (:weight bold :foreground "grey")))
   "Face for printed user commands.")
 
 (defface spiel-title
-  '((t (:weight bold :foreground "blue")))
+  '((t (:weight bold :foreground "blue" :height 2.0)))
   "Face for room titles.")
 
-(defvar spiel--input-buffer "*spiel input*" "Name of input buffer.")
-(defvar spiel--output-buffer "*spiel output*" "Name of output buffer.")
-(defvar spiel--old-window-config nil "Window config priror to launching game.")
-(defvar spiel-player nil "The main character struct.")
-(defvar spiel--rooms nil "Alist of rooms in memory.")
-(defvar spiel--room  nil "Name of current room.")
+(defvar spiel--game nil "The current game struct.")
+(defvar spiel--player nil "The current game player struct.")
 
-(defclass spiel-player ()
-  ((status :initarg :status
-           :initform nil
-           :type list
-           :custom list
-           :documentation "The player's status.")
-   (inventory :initarg :inventory
-              :initform nil
-              :type list
-              :custom list
-              :documentation "The player's inventory.")
-   (health :initarg :health
-           :initform 3
-           :type integer
-           :custom integer
-           :documentation "The player's health."))
-  "A basic player class.")
+(cl-defstruct (spiel-player< (:constructor spiel-player<--create)
+                             (:type list)
+                             (:copier nil)
+                             (:named))
+  "Player struct."
+  name
+  inventory
+  status
+  (health 3))
 
-(cl-defmethod spiel--print-status ((player spiel-player))
-  "Print PLAYER's current status."
-  (spiel--print (format "%s" (car (oref player status))) "\n"))
+(cl-defun spiel-player<-create (&key name inventory status health)
+  "Create a new player struct.
+NAME, INVENTORY, STATUS, HEALTH, keys initialize player."
+  (setq spiel--player (spiel-player<--create :name name
+                                             :inventory inventory
+                                             :status status
+                                             :health health)))
+
+(cl-defstruct (spiel-game< (:constructor spiel-game<--create)
+                           (:type list)
+                           (:copier nil)
+                           (:named))
+  "Game struct."
+  title rooms room
+  (player (spiel-player<-create))
+  (output-buffer "*spiel-output*")
+  (input-buffer "*spiel-input*")
+  (reset)
+  (window-config (current-window-configuration)))
+
+(cl-defun spiel-game<-create (title room-dir
+                                    &key
+                                    player room rooms output-buffer input-buffer
+                                    reset window-config)
+  "Create a new game struct.
+TITLE and ROOM-DIR are required.
+PLAYER, ROOM, ROOMS, OUTPUT-BUFFER, INPUT-BUFFER, RESET, WINDOW-CONFIG,
+initialize struct."
+  (prog1
+      (setq spiel--game
+            (spiel-game<--create
+             :title title
+             :player player
+             :room room
+             :rooms rooms
+             :output-buffer output-buffer
+             :input-buffer input-buffer
+             :reset reset
+             :window-config window-config))
+    (spiel--load-rooms room-dir)))
+
+(defun spiel--reset ()
+  "Reset GAME."
+  (funcall (spiel-game<-reset spiel--game)))
+
+(defun spiel--print (&rest args)
+  "Print ARGS in the GAME's output buffer."
+  (with-current-buffer (spiel-game<-output-buffer spiel--game)
+    (with-silent-modifications
+      (goto-char (point-max))
+      (apply (if spiel-want-typing #'spiel--type #'insert) args)
+      (set-window-point (get-buffer-window (current-buffer)) (point-max)))
+    nil))
+
+(defun spiel--print-status ()
+  "Print player's current status."
+  (spiel--print (format "%s" (car (spiel-player<-status spiel--player))) "\n"))
+
+(defun spiel--bold-list (commands)
+  "Return emobldened list of COMMANDS."
+  (string-join (mapcar (lambda (s) (propertize (car s) 'face '(:weight bold)))
+                       commands)
+               "\n"))
 
 (defun spiel-help ()
-  "Print game help."
+  "Print GAME help."
   (spiel--print
    "Try typing one of the following verbs at the prompt..."
    "\n"
-   (string-join (mapcar (lambda (v) (propertize (car v) 'face '(:weight bold))) spiel--verbs) "\n")
+   (spiel--bold-list spiel-verbs)
    "\n"
    "...followed by a NOUN in the room.\n"
    "You can also type any of the following global commands by themselves:\n"
-   (string-join (mapcar (lambda (v) (propertize (car v) 'face '(:weight bold))) spiel--global-commands) "\n")))
+   (spiel--bold-list spiel-global-commands)))
 
 (defun spiel-quit ()
   "Quit game."
-  (interactive)
   (spiel--print "Quitting game...")
   (sit-for 0.5)
-  (with-current-buffer (get-buffer-create spiel--input-buffer)
+  (with-current-buffer (spiel-game<-input-buffer spiel--game)
     (kill-buffer))
-  (with-current-buffer (get-buffer-create spiel--output-buffer)
+  (with-current-buffer (spiel-game<-output-buffer spiel--game)
     (kill-buffer))
-  (when spiel--old-window-config
-    (set-window-configuration spiel--old-window-config)))
+  (when-let ((config (spiel-game<-window-config spiel--game)))
+    (set-window-configuration config)))
 
-(cl-defmethod spiel--print-inventory ((player spiel-player))
-  "Print PLAYER's inventory."
-  (spiel--print
-   (if-let ((inventory (oref player inventory)))
-       (format "Your inventory contains: %s" (string-join (mapcar #'cdr inventory) ", "))
-     "Your inventory is empty.")
-   "\n"))
+(defun spiel--print-inventory ()
+  "Print player's inventory."
+  (spiel--print (if-let ((inventory (spiel-player<-inventory spiel--player)))
+                    (format spiel-inventory-message-format
+                            (string-join (mapcar #'cdr inventory) ", "))
+                  spiel-inventory-empty-message)
+                "\n"))
 
 (defun spiel--print-room-description ()
-  "Print description of current room."
-  (let ((description (plist-get spiel--room :description)))
+  "Print current room description."
+  (let ((description (plist-get (spiel-game<-room spiel--game) :description)))
     (spiel--print (if (functionp description) (funcall description) description) "\n")))
 
-(cl-defmethod spiel--get ((player spiel-player) item description)
-  "Add ITEM with DESCRIPTION to PLAYER's inventory."
-  (if-let ((found (alist-get item (oref player inventory))))
+(defun spiel--get (item description)
+  "Add ITEM with DESCRIPTION to player's inventory."
+  (if-let ((found (alist-get item (spiel-player<-inventory spiel--player))))
       (spiel--print (format "You already have the %s." item))
-    (setf (alist-get item (oref player inventory)) description))
+    (setf (alist-get item (spiel-player<-inventory spiel--player)) description))
   (spiel--print (format "%s added to inventory." description)))
 
-(cl-defmethod spiel--use ((player spiel-player) item)
-  "Use ITEM in PLAYER's inventory."
-  (setf (alist-get item (oref player inventory) nil 'remove) nil))
+(defun spiel--use (item)
+  "Use ITEM in player's inventory."
+  (setf (alist-get item (spiel-player<-inventory spiel--player) nil 'remove) nil))
 
-(cl-defmethod spiel--has-p ((player spiel-player) item)
-  "Return t if PLAYER has ITEM."
-  (and (alist-get item (oref player inventory)) t))
+(defun spiel--has-p (item)
+  "Return t if ITEM is in player's inventory."
+  (and (alist-get item (spiel-player<-inventory spiel--player)) t))
 
 (defun spiel--load-room (path)
-  "Load room at PATH."
+  "Load room at PATH into game."
   (with-temp-buffer
     (insert-file-contents path)
     (goto-char (point-min))
     (let ((data (read (current-buffer))))
-      (setf (alist-get (plist-get data :id) spiel--rooms) data)
-      data)))
+      (setf (alist-get (plist-get data :id) (spiel-game<-rooms spiel--game)) data))))
 
 (defun spiel--load-rooms (dir)
-  "Load DIRs rooms into memory."
-  (mapc #'spiel--load-room (directory-files dir 'full "eld$")))
+  "Load DIR's rooms into game's memory."
+  (cl-loop for file in (directory-files dir 'full "eld$") do (spiel--load-room file)))
 
 (defun spiel--go (id)
-  "Go to room with ID."
-  (if-let ((destination (alist-get id spiel--rooms)))
+  "Go to game room with ID."
+  (if-let ((destination (alist-get id (spiel-game<-rooms spiel--game))))
       (progn
-        (setf spiel--room destination)
+        (setf (spiel-game<-room spiel--game) destination)
         (spiel--set-title)
-        (spiel--print-room-description))
-    (spiel--print (format "ERROR loading room: %S" id))))
+        (spiel--print-room-description)
+        (spiel--print (format "ERROR loading room: %S" id)))))
 
 (defun spiel--input-buffer ()
-  "Display the input buffer."
-  (pop-to-buffer (get-buffer-create spiel--input-buffer)
-                 '(display-buffer-at-bottom
-                   display-buffer-in-atom-window
-                   (window-height . 5)
-                   (dedicated . t)))
+  "Display game's input buffer."
+  (pop-to-buffer (get-buffer-create (spiel-game<-input-buffer spiel--game))
+                 '((display-buffer-at-bottom)
+                   (window-height . 5)))
   (with-silent-modifications
     (erase-buffer)
     (spiel-input-mode)))
 
 (defmacro spiel--room-var (symbol)
   "Return room :vars SYMBOL's associated value."
-  `(alist-get ,symbol (plist-get spiel--room :vars)))
+  `(alist-get ,symbol (plist-get (spiel-game<-room spiel--game) :vars)))
 
 (defmacro spiel--set-room-item (item &rest body)
   "Add ITEM with BODY to the current room."
   (declare (indent 1))
-  `(setf (alist-get ,item (plist-get spiel--room :items) nil nil #'equal)
+  `(setf (alist-get ,item (plist-get (spiel-game<-room spiel--game) :items) nil nil #'equal)
          '(,@body)))
 
 (defun spiel--set-title ()
   "Set ouptut buffer title."
-  (with-current-buffer (get-buffer-create spiel--output-buffer)
+  (with-current-buffer (spiel-game<-output-buffer spiel--game)
     (setq-local header-line-format
-                (propertize (plist-get spiel--room :title) 'face 'spiel-title))))
+                (propertize (plist-get (spiel-game<-room spiel--game) :title)
+                            'face 'spiel-title))))
 
 (defun spiel--output-buffer ()
-  "Display the output buffer."
-  (pop-to-buffer (get-buffer-create spiel--output-buffer)
-                 '(display-buffer-same-window
-                   display-buffer-in-atom-window
-                   (display-buffer-reuse-window)
-                   (dedicated . t)))
+  "Display game's output buffer."
+  (pop-to-buffer (get-buffer-create (spiel-game<-output-buffer spiel--game))
+                 '((display-buffer-same-window)))
   (with-silent-modifications
     (erase-buffer)
     (setq-local mode-line-format nil)
@@ -205,29 +255,21 @@
   (visual-line-mode))
 
 (defun spiel--type (&rest strings)
-  "Type STRINGS in output buffer."
-  (with-current-buffer (get-buffer-create spiel--output-buffer)
+  "Type STRINGS in game's output buffer."
+  (with-current-buffer (spiel-game<-output-buffer spiel--game)
     (with-silent-modifications
       (cl-loop for string in strings
                for tokens = (split-string string "" 'omit-nulls)
-               do (cl-loop for token in tokens
-                           do
-                           (goto-char (point-max))
-                           (insert token)
-                           (set-window-point (get-buffer-window (current-buffer)) (point-max))
-                           (sit-for 0.0015))))))
-
-(defun spiel--print (&rest args)
-  "Print ARGS in the output buffer."
-  (with-current-buffer (get-buffer-create spiel--output-buffer)
-    (with-silent-modifications
-      (goto-char (point-max))
-      (apply (if spiel-want-typing #'spiel--type #'insert) args))
-    (set-window-point (get-buffer-window (current-buffer)) (point-max)))
-  nil)
+               do (cl-loop
+                   for token in tokens
+                   do
+                   (goto-char (point-max))
+                   (insert token)
+                   (set-window-point (get-buffer-window (current-buffer)) (point-max))
+                   (sit-for 0.0015))))))
 
 (defun spiel--print-command (command)
-  "Print COMMAND."
+  "Print COMMAND in output buffer."
   (spiel--print (propertize (format "\n> %s\n" command) 'face 'spiel-command)))
 
 (defun spiel--parse-command (command &optional noprint)
@@ -237,20 +279,20 @@ If NOPRINT is non-nil, do not print command."
            (verbs (cl-some (lambda (token)
                              (cl-some (lambda (verbs) (and (member token verbs) verbs))
                                       (append (mapcar (lambda (it) (list (car it)))
-                                                      spiel--global-commands)
-                                              spiel--verbs)))
+                                                      spiel-global-commands)
+                                              spiel-verbs)))
                            tokens))
            (verb (car verbs)))
       (progn
         (unless noprint (spiel--print-command command))
-        (with-current-buffer (get-buffer-create spiel--output-buffer)
+        (with-current-buffer (spiel-game<-output-buffer spiel--game)
           (setq tokens (cl-remove-if (lambda (token) (member token verbs)) tokens))
           (if-let ((global (and (not tokens)
                                 ;;@TODO: assoc-string or assoc-default?
-                                (alist-get verb spiel--global-commands nil nil #'equal))))
-              (funcall global)
+                                (alist-get verb spiel-global-commands nil nil #'equal))))
+              (funcall global spiel--game)
             (catch 'acted
-              (cl-loop with items = (plist-get spiel--room :items)
+              (cl-loop with items = (plist-get (spiel-game<-room spiel--game) :items)
                        for token in tokens
                        for item = (alist-get token items nil nil #'equal)
                        for action = (alist-get verb item nil nil #'equal)
@@ -265,9 +307,9 @@ If NOPRINT is non-nil, do not print command."
     (spiel--print-command (format "Unrecognized command %S" command))))
 
 (defun spiel-send-input ()
-  "Send the input of the input-buffer."
+  "Send the input from input-buffer."
   (interactive)
-  (unless (equal (buffer-name) spiel--input-buffer)
+  (unless (equal (buffer-name) (spiel-game<-input-buffer spiel--game))
     (user-error "Not in input buffer"))
   (let ((input (buffer-substring-no-properties (point-min) (point-max))))
     (delete-region (1+ (point-min)) (point-max))
