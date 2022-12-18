@@ -214,8 +214,8 @@ initialize struct."
       (progn
         (setf (spiel-game<-room spiel--game) destination)
         (spiel--set-title)
-        (spiel--print-room-description)
-        (spiel--print (format "ERROR loading room: %S" id)))))
+        (spiel--print-room-description))
+    (spiel--print (format "ERROR loading room: %S" id))))
 
 (defun spiel--input-buffer ()
   "Display game's input buffer."
