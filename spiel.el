@@ -52,6 +52,14 @@
   "Alist of global player commands."
   :type 'alist)
 
+(defface spiel-command
+  '((t (:weight bold :foreground "grey")))
+  "Face for printed user commands.")
+
+(defface spiel-title
+  '((t (:weight bold :foreground "blue")))
+  "Face for room titles.")
+
 (defvar spiel--input-buffer "*spiel input*" "Name of input buffer.")
 (defvar spiel--output-buffer "*spiel output*" "Name of output buffer.")
 (defvar spiel--old-window-config nil "Window config priror to launching game.")
@@ -179,8 +187,7 @@
   "Set ouptut buffer title."
   (with-current-buffer (get-buffer-create spiel--output-buffer)
     (setq-local header-line-format
-                (propertize (plist-get spiel--room :title)
-                            'face '(:height 2.0)))))
+                (propertize (plist-get spiel--room :title) 'face 'spiel-title))))
 
 (defun spiel--output-buffer ()
   "Display the output buffer."
@@ -221,8 +228,7 @@
 
 (defun spiel--print-command (command)
   "Print COMMAND."
-  (spiel--print
-   (propertize (format "\n> %s\n" command) 'face '(:height 1.0 :foreground "grey"))))
+  (spiel--print (propertize (format "\n> %s\n" command) 'face 'spiel-command)))
 
 (defun spiel--parse-command (command &optional noprint)
   "Parse COMMAND.
