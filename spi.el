@@ -280,7 +280,3 @@ If NOPRINT is non-nil, do not print command."
 
 (provide 'spi)
 ;;; spi.el ends here
-
-;;@TODO: remove. testing only. should be user config.
-(when (fboundp 'evil-set-initial-state)
-  (evil-set-initial-state 'spi-input-mode 'insert))
