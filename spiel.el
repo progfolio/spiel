@@ -1,9 +1,13 @@
-;;; spiel.el --- Story Programming Interface for Emacs Lisp: text adventure framework                     -*- lexical-binding: t; -*-
+;;; spiel.el --- Story Programming Interface for Emacs Lisp                     -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022  Nicholas Vollmer
 
 ;; Author: Nicholas Vollmer
-;; Keywords:
+;; URL: https://github.com/progfolio/spiel
+;; Created: December 17, 2022
+;; Package-Requires: ((emacs "27.1"))
+;; Version: 0.0.0
+;; Keywords: games
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -19,6 +23,7 @@
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
+;; This is a frameworke for creating text adventure games.
 
 ;;
 
