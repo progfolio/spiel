@@ -39,18 +39,18 @@
   :type 'boolean)
 
 (defcustom spiel--verbs '(("look" "inspect")
-                        ("go" "walk" "move" "run")
-                        ("take" "get" "grab")
-                        ("use" "give"))
+                          ("go" "walk" "move" "run")
+                          ("take" "get" "grab")
+                          ("use" "give"))
   "List of verb lists. Each element in the sublists are synonymous actions."
   :type 'alist)
 
 (defcustom spiel--global-commands '(("inventory" . spiel--print-inventory)
-                                  ("look" . spiel--print-room-description)
-                                  ("status" . spiel--print-status)
-                                  ("reset" . spiel--reset)
-                                  ("quit" . spiel-quit)
-                                  ("help" . spiel-help))
+                                    ("look" . spiel--print-room-description)
+                                    ("status" . spiel--print-status)
+                                    ("reset" . spiel--reset)
+                                    ("quit" . spiel-quit)
+                                    ("help" . spiel-help))
   "Alist of global player commands."
   :type 'alist)
 
