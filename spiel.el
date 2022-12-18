@@ -84,10 +84,11 @@
 (cl-defun spiel-player<-create (&key name inventory status health)
   "Create a new player struct.
 NAME, INVENTORY, STATUS, HEALTH, keys initialize player."
-  (setq spiel--player (spiel-player<--create :name name
-                                             :inventory inventory
-                                             :status status
-                                             :health health)))
+  (setq spiel--player (apply #'spiel-player<--create
+                             `(,@(when name      (list :name name))
+                               ,@(when inventory (list :inventory inventory))
+                               ,@(when status    (list :status status))
+                               ,@(when health    (list :health health))))))
 
 (cl-defstruct (spiel-game< (:constructor spiel-game<--create)
                            (:type list)
@@ -111,15 +112,15 @@ PLAYER, ROOM, ROOMS, OUTPUT-BUFFER, INPUT-BUFFER, RESET, WINDOW-CONFIG,
 initialize struct."
   (prog1
       (setq spiel--game
-            (spiel-game<--create
-             :title title
-             :player player
-             :room room
-             :rooms rooms
-             :output-buffer output-buffer
-             :input-buffer input-buffer
-             :reset reset
-             :window-config window-config))
+            (apply #'spiel-game<--create
+                   `(,@(when title (list :title title))
+                     ,@(when player (list :player player))
+                     ,@(when room   (list :room room))
+                     ,@(when rooms  (list :rooms rooms))
+                     ,@(when output-buffer (list :output-buffer output-buffer))
+                     ,@(when input-buffer  (list :input-buffer input-buffer))
+                     ,@(when reset (list :reset reset))
+                     ,@(when window-config (list :window-config window-config)))))
     (spiel--load-rooms room-dir)))
 
 (defun spiel--reset ()
