@@ -1,0 +1,9 @@
+* SPIEL: Story Programming Interface for Emacs Lisp
+
+A text adventure framework.
+
+** Structure of a game
+A game is a set of file of the following structure:
+
+
+** Structure of a room
