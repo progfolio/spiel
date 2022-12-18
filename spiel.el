@@ -23,9 +23,7 @@
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;; This is a frameworke for creating text adventure games.
-
-;;
+;; This is a framework for creating text adventure games.
 
 ;;; Code:
 (require 'eieio)
