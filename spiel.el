@@ -291,7 +291,7 @@ If NOPRINT is non-nil, do not print command."
           (if-let ((global (and (not tokens)
                                 ;;@TODO: assoc-string or assoc-default?
                                 (alist-get verb spiel-global-commands nil nil #'equal))))
-              (funcall global spiel--game)
+              (funcall global)
             (catch 'acted
               (cl-loop with items = (plist-get (spiel-game<-room spiel--game) :items)
                        for token in tokens
