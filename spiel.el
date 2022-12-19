@@ -26,6 +26,7 @@
 ;; This is a framework for creating text adventure games.
 
 ;;; Code:
+(require 'cl-lib)
 
 (defgroup spiel nil
   "Story Programming Interface for Emacs Lisp: A text adventure framework."
