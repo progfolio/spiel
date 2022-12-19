@@ -26,6 +26,7 @@
 ;; This is a framework for creating text adventure games.
 
 ;;; Code:
+(eval-when-compile (require 'subr-x))
 (require 'cl-lib)
 
 (defgroup spiel nil
