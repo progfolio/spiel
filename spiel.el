@@ -474,24 +474,28 @@ If ASK is non-nil, prompt user to disambiguate and return t."
              (throw 'turn-over t))
          (format "Can't go %S." (spiel--pattern-to-query pattern))))))
 
+(defvar-local spiel-actions
+    '((answer-question . (`(,(and (pred spiel-question-p)) . ,_) (spiel--answer pattern)))
+      (look . ((or `("look" . ,rest) (and '("look") rest)) (spiel--look rest)))
+      (go . ((or `("go" . ,rest) (and '("go") rest)) (spiel--go rest)))
+      (generic-verb
+       . ((or (and `(,verb . ,rest) (guard (spiel-objects-p (car-safe rest))))
+              (and `(,verb ,rest) (guard (spiel-object-p rest))))
+          (spiel--disambiguate
+           rest #'spiel-object-in-room-p
+           (lambda (obj) (or (and (spiel-object-p obj) (spiel--do verb obj))
+                             (format "%s can't do that." (spiel-entity-name spiel-player)))))))
+      (wait . ('("wait") "@TODO: time passes..."))
+      (inventory . ('("inventory") (spiel--look '("inventory"))))
+      (quit . ('("quit") (spiel-quit)))
+      (reset . ('("reset") (spiel-reset)))
+      (verb-no-obj . ((and `(,verb) (guard (member verb spiel--verbs))) (format "%S what?" verb)))
+      (catch-all . (_ (format "%s can't %S" (spiel-entity-name spiel-player) (spiel--pattern-to-query pattern)))))
+  "Alist of form: (ID . PCASE-PATTERN).")
+
 (defun spiel--default-actions (pattern)
   "Call default function for PATTERN."
-  (pcase pattern
-    (`(,(and (pred spiel-question-p)) . ,_) (spiel--answer pattern))
-    ((or `("look" . ,rest) (and '("look") rest)) (spiel--look rest))
-    ((or `("go" . ,rest) (and '("go") rest)) (spiel--go rest))
-    ((or (and `(,verb . ,rest) (guard (spiel-objects-p (car-safe rest))))
-         (and `(,verb ,rest) (guard (spiel-object-p rest))))
-     (spiel--disambiguate
-      rest #'spiel-object-in-room-p
-      (lambda (obj) (or (and (spiel-object-p obj) (spiel--do verb obj))
-                        (format "%s can't do that." (spiel-entity-name spiel-player))))))
-    ('("wait") "@TODO: time passes...")
-    ('("inventory") (spiel--look '("inventory")))
-    ('("quit") (spiel-quit))
-    ('("reset") (spiel-reset))
-    ((and `(,verb) (guard (member verb spiel--verbs))) (format "%S what?" verb))
-    (_ (format "%s can't %S" (spiel-entity-name spiel-player) (spiel--pattern-to-query pattern)))))
+  (eval `(let ((pattern ',pattern)) (pcase ',pattern ,@(mapcar #'cdr spiel-actions))) t))
 
 (defun spiel--do (pattern &optional entity)
   "Do PATTERN with ENTITY."
