@@ -62,18 +62,7 @@
   "Alist of form: (ALIAS . EXPANSION)."
   :type 'alist)
 
-
 (defconst spiel--unlimited-capacity most-positive-fixnum)
-(defconst spiel--verbs
-  '(("look" "glance" "gaze" "stare" "see" "peer" "peek" "watch" "examine" "describe"
-     "study" "inspect" "scan" "scrutinize")
-    ("say" "tell" "shout" "whisper" "tell")
-    ("go" "move" "walk" "run" "crawl")
-    ("attack" "hit")
-    "inventory"
-    "pull"
-    "use"
-    "wait" "quit" "reset" "give"))
 
 (defconst spiel--prepositions '("in" "at" "around" "behind" "inside" "beside"))
 
@@ -82,6 +71,76 @@
 (defvar-local spiel-player nil "Game player object.")
 (defvar-local spiel-pending-question nil)
 (defvar-local spiel-print-cursor-timer nil "Timer to debounce post-printing cursor display.")
+
+(defmacro spiel-entity-name (entity)
+  "Return ENTITY's name."
+  `(car (spiel-object<-names (spiel-ensure-entity ,entity))))
+
+(defun spiel--look (pattern)
+  "Look PATTERN."
+  (let ((name (spiel-entity-name spiel-player)))
+    (pcase pattern
+      ((or '("inventory") `((or "in" "at") "inventory"))
+       (spiel--describe-inventory spiel-player))
+      ('("away") (format "%s averts his eyes." name))
+      ('("out") (format "%s jolts and says \"huh!?\"" name))
+      ('("inward") (spiel--look `("in" ,(list spiel-player))))
+      (`(,(or "at" "in" "behind")) "Be more specific...")
+      (`(,(or "at" "in") "room") (spiel-room-description))
+      ((or `(,(or "around" "here" "room")) 'nil) (spiel-room-description))
+      ((and strings (guard (cl-every #'stringp strings)))
+       (format "%s cant do that." name))
+      (`("at" . ,rest) (spiel--look (car rest)))
+      (`(,(or "in" "into" "inside") ,objs)
+       (spiel--disambiguate
+        objs #'spiel-object-in-room-p
+        (lambda (obj)
+          (if (not (spiel-object-p obj))
+              (format "%s can't do that." name)
+            (cond
+             ((eq obj spiel-player) (format "%s takes a deep breath and looks inward..." name))
+             ((spiel-actor-p obj) (format "%s does not have x-ray vision." name))
+             (t (spiel--describe-inventory obj)))))))
+      ((or (and `(,objs) (guard (spiel-objects-p objs))) (and objs (pred spiel-objects-p)))
+       (spiel--disambiguate objs #'spiel-object-in-room-p #'spiel--look))
+      ((or (and obj (pred spiel-object-p) (pred spiel-object-in-room-p))
+           (and `(,obj) (guard (and (spiel-object-p obj) (spiel-object-in-room-p obj)))))
+       (or (spiel--do pattern obj)
+           (spiel-object<-details obj)
+           (spiel-object<-description obj)
+           ;;@FIX: Replace with non-developer message.
+           (format "@TODO: give %s details or description" (spiel-object<-id obj))))
+      (_ (format "%s can't do that." name)))))
+
+(defvar spiel-go-hook nil "Hook run after player changes destination via the \"go\" verb.")
+(defun spiel--go (pattern)
+  "Go PATTERN."
+  (pcase pattern
+    ('nil "Where?")
+    ;;@MAYBE: implement "back" to go to last location?
+    (_ (if-let ((destination (spiel--do pattern (spiel-object-room))))
+           (progn
+             (spiel-object-give destination spiel-player)
+             (run-hooks 'spiel-go-hook)
+             (spiel-print "\n" (spiel-room-description) "\n\n")
+             (spiel-insert-prompt)
+             (throw 'turn-over t))
+         (format "Can't go %S." (spiel--pattern-to-query pattern))))))
+
+(defvar-local spiel-verbs
+    (list
+     (spiel-verb :names '("look" "glance" "gaze" "stare" "see" "peer" "peek" "watch" "examine" "describe" "study" "inspect" "scan" "scrutinize")
+                 :actions #'spiel--look)
+     (spiel-verb :names '("say" "tell" "shout" "whisper" "tell"))
+     (spiel-verb :names '("go" "move" "walk" "run" "crawl")
+                 :actions #'spiel--go)
+     (spiel-verb :names '("attack" "hit"))
+     (spiel-verb :names '("inventory"))
+     (spiel-verb :names '("pull"))
+     (spiel-verb :names '("use"))
+     (spiel-verb :names '("quit") :actions (lambda (_) (spiel-quit)))
+     (spiel-verb :names '("reset") :actions (lambda (_) (spiel-reset)))
+     (spiel-verb :names '("give"))))
 
 (defun spiel-create-entity (type &rest args)
   "Return entity of TYPE with ARGS."
@@ -280,16 +339,9 @@ If ENTITY is non-nil, set question asker."
                                      (if (stringp option) option (car option)))))
               options)))))
 
-(defun spiel--canonicalize (word words)
-  "Return WORD's canonical form from WORDS."
-  (cl-some (lambda (el) (if (and (listp el) (member word el))
-                            (car el)
-                          (and (equal el word) word)))
-           words))
-
-(defun spiel--verb (string)
-  "Return canonical verb for STRING."
-  (spiel--canonicalize string spiel--verbs))
+(defun spiel--verb (name)
+  "Return VERB object with NAME."
+  (cl-find name spiel-verbs :key #'spiel-verb<-names :test #'member))
 
 ;;@OPTIMIZE: lots of downcasing here and in parser.
 (defun spiel-objects-matching (string slot)
@@ -324,13 +376,10 @@ If ENTITY is non-nil, set question asker."
                 (setq acc nil))
                (t (if-let ((named (spiel-objects-matching (downcase acc) #'spiel-object<-names))
                            (possible (if described (cl-intersection described named) named)))
-                      (progn
-                        (mapc (lambda (o) (let ((ctx (spiel-object<-context o)))
-                                            (setf (alist-get 'as ctx) acc)
-                                            (setf (spiel-object<-context o) ctx)))
-                              possible)
-                        (push possible result)
-                        (setq acc nil described nil))
+                      (setq possible
+                            (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
+                            result (cons possible result)
+                            acc nil described nil)
                     (if-let ((possible (spiel-objects-matching (downcase acc) #'spiel-object<-adjectives)))
                         (setq described
                               (mapc (lambda (o)
@@ -360,8 +409,8 @@ If ENTITY is non-nil, set question asker."
 (defun spiel--pattern-to-query (pattern)
   "Return qeury from PATTERN."
   (mapconcat (lambda (el) (cond
-                           ((spiel-object-p el) (spiel-context-get el 'as))
-                           ((spiel-objects-p el) (spiel-context-get (car el) 'as))
+                           ((spiel-named-p el) (spiel-named<-as el))
+                           ((spiel-objects-p el) (spiel-named<-as (car el)))
                            (t el)))
              (if (spiel-object-p pattern) (list pattern) pattern) " "))
 
@@ -423,82 +472,22 @@ If ASK is non-nil, prompt user to disambiguate and return t."
   (equal (spiel-object-room (spiel-ensure-entity object))
          (spiel-ensure-entity (or room (spiel-object-room)))))
 
-(defun spiel--look (pattern)
-  "Look PATTERN."
-  (let ((name (spiel-entity-name spiel-player)))
-    (pcase pattern
-      ((or '("inventory") `((or "in" "at") "inventory"))
-       (spiel--describe-inventory spiel-player))
-      ('("away") (format "%s averts his eyes." name))
-      ('("out") (format "%s jolts and says \"huh!?\"" name))
-      ('("inward") (spiel--look `("in" ,(list spiel-player))))
-      (`(,(or "at" "in" "behind")) "Be more specific...")
-      (`(,(or "at" "in") "room") (spiel-room-description))
-      ((or `(,(or "around" "here" "room")) 'nil) (spiel-room-description))
-      ((and strings (guard (cl-every #'stringp strings)))
-       (format "%s cant do that." name))
-      (`("at" . ,rest) (spiel--look (car rest)))
-      (`(,(or "in" "into" "inside") ,objs)
-       (spiel--disambiguate
-        objs #'spiel-object-in-room-p
-        (lambda (obj)
-          (if (not (spiel-object-p obj))
-              (format "%s can't do that." name)
-            (cond
-             ((eq obj spiel-player) (format "%s takes a deep breath and looks inward..." name))
-             ((spiel-actor-p obj) (format "%s does not have x-ray vision." name))
-             (t (spiel--describe-inventory obj)))))))
-      ((or (and `(,objs) (guard (spiel-objects-p objs))) (and objs (pred spiel-objects-p)))
-       (spiel--disambiguate objs #'spiel-object-in-room-p #'spiel--look))
-      ((or (and obj (pred spiel-object-p) (pred spiel-object-in-room-p))
-           (and `(,obj) (guard (and (spiel-object-p obj) (spiel-object-in-room-p obj)))))
-       (or (spiel--do pattern obj)
-           (spiel-object<-details obj)
-           (spiel-object<-description obj)
-           ;;@FIX: Replace with non-developer message.
-           (format "@TODO: give %s details or description" (spiel-object<-id obj))))
-      (_ (format "%s can't do that." name)))))
-
-(defvar spiel-go-hook nil "Hook run after player changes destination via the \"go\" verb.")
-(defun spiel--go (pattern)
-  "Go PATTERN."
-  (pcase pattern
-    ('nil "Where?")
-    ;;@MAYBE: implement "back" to go to last location?
-    (_ (if-let ((destination (spiel--do pattern (spiel-object-room))))
-           (progn
-             (spiel-object-give destination spiel-player)
-             (run-hooks 'spiel-go-hook)
-             (spiel-print "\n" (spiel-room-description) "\n\n")
-             (spiel-insert-prompt)
-             (throw 'turn-over t))
-         (format "Can't go %S." (spiel--pattern-to-query pattern))))))
-
 (defun spiel--default-actions (pattern)
   "Call default function for PATTERN."
   (pcase pattern
     (`(,(and (pred spiel-question-p)) . ,_) (spiel--answer pattern))
-    ((or `("look" . ,rest) (and '("look") rest)) (spiel--look rest))
-    ((or `("go" . ,rest) (and '("go") rest)) (spiel--go rest))
-    ((or (and `(,verb . ,rest) (guard (spiel-objects-p (car-safe rest))))
-         (and `(,verb ,rest) (guard (spiel-object-p rest))))
-     (spiel--disambiguate
-      rest #'spiel-object-in-room-p
-      (lambda (obj) (or (and (spiel-object-p obj) (spiel--do verb obj))
-                        (format "%s can't do that." (spiel-entity-name spiel-player))))))
-    ('("wait") "@TODO: time passes...")
-    ('("inventory") (spiel--look '("inventory")))
-    ('("quit") (spiel-quit))
-    ('("reset") (spiel-reset))
-    ((and `(,verb) (guard (member verb spiel--verbs))) (format "%S what?" verb))
-    (_ (format "%s can't %S" (spiel-entity-name spiel-player) (spiel--pattern-to-query pattern)))))
+    ((and `(,verb . ,rest) (guard (spiel-verb-p verb)))
+     (or (spiel--do rest verb)
+         (spiel--do (spiel--pattern-to-query pattern))))
+    (_ (format "%s can't %S" (spiel-entity-name spiel-player)
+               (string-join pattern " ")))))
 
 (defun spiel--do (pattern &optional entity)
   "Do PATTERN with ENTITY."
   (if-let ((entity)
-           (o (spiel-ensure-entity entity)))
-      (when-let (((spiel-object-p o))
-                 (actions (spiel-object<-actions o)))
+           (e (spiel-ensure-entity entity)))
+      (when-let (((spiel-named-p e))
+                 (actions (spiel-named<-actions e)))
         (funcall actions pattern))
     (spiel--default-actions pattern)))
 
