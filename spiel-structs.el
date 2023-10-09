@@ -39,28 +39,30 @@
   options
   responses)
 
-(cl-defstruct (spiel-verb (:include spiel-entity)
-                          (:constructor spiel-verb)
-                          (:type list) (:copier nil) (:named)
-                          (:conc-name spiel-verb<-))
+(cl-defstruct (spiel-named (:include spiel-entity)
+                           (:constructor spiel-named)
+                           (:type list) (:copier nil) (:named)
+                           (:conc-name spiel-named<-))
   names
-  disambiguator
   actions
   as)
 
-(cl-defstruct (spiel-object (:include spiel-entity)
+(cl-defstruct (spiel-verb (:include spiel-named)
+                          (:constructor spiel-verb)
+                          (:type list) (:copier nil) (:named)
+                          (:conc-name spiel-verb<-))
+  (disambiguator #'spiel-object-in-room-p))
+
+(cl-defstruct (spiel-object (:include spiel-named)
                             (:constructor spiel-object)
                             (:type list) (:copier nil) (:named)
                             (:conc-name spiel-object<-))
-  names
   description
   details
   adjectives
   location ;;(in . thing) (on . thing)
   capacity
-  actions
-  size
-  as)
+  size)
 
 (cl-defstruct (spiel-actor (:include spiel-object)
                            (:constructor spiel-actor)
