@@ -185,10 +185,6 @@
   `(let ((o (spiel-ensure-entity ,entity)))
      (alist-get ,key (spiel-entity<-context o) nil nil #'equal)))
 
-(defmacro spiel-entity-name (entity)
-  "Return ENTITY's name."
-  `(car (spiel-object<-names (spiel-ensure-entity ,entity))))
-
 (defun spiel-prompt-string (format &optional placeholder)
   "Return PROMPT string from FORMAT.
 If PLACEHOLDER is non-nil, prompt's display is set to that."
