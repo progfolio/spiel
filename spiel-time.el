@@ -39,5 +39,10 @@
   "Subtract SECONDS from `spiel-time'."
   (setq spiel-time (time-subtract spiel-time seconds)))
 
+(setq-default spiel-verbs
+              (cons (spiel-verb :names '("wait") :actions
+                                (lambda (_) (spiel-add-time 60) "Time passes..."))
+                    spiel-verbs))
+
 (provide 'spiel-time)
 ;;; spiel-time.el ends here
