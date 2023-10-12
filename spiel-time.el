@@ -24,6 +24,8 @@
 
 ;;; Code:
 (require 'cl-lib)
+(require 'spiel)
+
 (defvar-local spiel-time nil)
 
 (defun spiel-timecode-to-seconds (timecode)
