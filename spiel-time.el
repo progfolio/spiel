@@ -27,6 +27,8 @@
 (require 'spiel)
 
 (defvar-local spiel-time nil)
+(defvar-local spiel-time-wait-seconds 60 "Number of seconds to wait by default.")
+(defvar-local spiel-time-wait-message "Time passes..." "Message displayed when waiting.")
 
 (defun spiel-timecode-to-seconds (timecode)
   "Convert TIMECODE to seconds."
@@ -41,10 +43,16 @@
   "Subtract SECONDS from `spiel-time'."
   (setq spiel-time (time-subtract spiel-time seconds)))
 
+(defun spiel--wait (pattern)
+  (pcase pattern
+    ('nil (spiel-add-time spiel-time-wait-seconds) spiel-time-wait-message)
+    (`(,timecode)
+     (if-let ((seconds (ignore-errors (spiel-timecode-to-seconds timecode))))
+         (let ((spiel-time-wait-seconds seconds)) (spiel--wait nil))
+       (format "Can't wait %S" timecode)))))
+
 (setq-default spiel-verbs
-              (cons (spiel-verb :names '("wait") :actions
-                                (lambda (_) (spiel-add-time 60) "Time passes..."))
-                    spiel-verbs))
+              (cons (spiel-verb :names '("wait") :actions #'spiel--wait) spiel-verbs))
 
 (provide 'spiel-time)
 ;;; spiel-time.el ends here
