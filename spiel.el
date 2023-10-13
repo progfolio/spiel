@@ -64,7 +64,7 @@
 
 (defconst spiel--unlimited-capacity most-positive-fixnum)
 
-(defconst spiel--prepositions '("in" "at" "around" "behind" "inside" "beside"))
+(defconst spiel--prepositions '("in" "on" "at" "around" "behind" "inside" "beside"))
 
 (defvar-local spiel-buffer "*game*")
 (defvar-local spiel-entities nil "List of game entities.")
