@@ -381,12 +381,7 @@ If ENTITY is non-nil, set question asker."
                             result (cons (if (> (length possible) 1) possible (car possible)) result)
                             acc nil described nil)
                     (if-let ((possible (spiel-objects-matching (downcase acc) #'spiel-object<-adjectives)))
-                        (setq described
-                              (mapc (lambda (o)
-                                      (let ((ctx (spiel-object<-context o)))
-                                        (unless (functionp ctx)
-                                          (setf (alist-get 'as (spiel-object<-context o)) acc))))
-                                    possible)
+                        (setq described (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
                               acc nil)))))
          finally (when (and acc (not (string-empty-p acc))) (push acc result))
          finally (when described (push (car described) result))
