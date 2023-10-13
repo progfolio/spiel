@@ -53,14 +53,16 @@
   :type (or 'float 'integer))
 
 (defcustom spiel-command-aliases
-  '(("r" . "reset")
-    ("q" . "quit")
-    ("i" . "describe inventory")
-    ("n" . "go north")
-    ("s" . "go south")
-    ("e" . "go east")
-    ("w" . "go west"))
-  "Alist of form: (ALIAS . EXPANSION)."
+  '(("^r$" . "reset")
+    ("^q$" . "quit")
+    ("^i$" . "describe inventory")
+    ("^n$" . "go north")
+    ("^s$" . "go south")
+    ("^e$" . "go east")
+    ("^w$" . "go west")
+    ("\\(?:\\(?:^\\|[[:space:]]+\\)l\\(?:$\\|[[:space:]]+\\)\\)" . "look ")
+    ("^la " . "look at "))
+  "Alist of form: (REGEXP . EXPANSION)."
   :type 'alist)
 
 (defconst spiel--unlimited-capacity most-positive-fixnum)
@@ -403,41 +405,36 @@ If ENTITY is non-nil, set question asker."
 
 (defun spiel--tokenize (string)
   "Return ojbects pattern from STRING."
-  (let ((tokens (string-split string " " 'omit-nulls))
-        (escapep nil))
-    (when (string-prefix-p "/" (car tokens))
-      (setf escapep t (car tokens) (substring (car tokens) 1)))
-    (if-let (((or (not spiel-pending-question) escapep))
-             (alias (alist-get (car tokens) spiel-command-aliases nil nil #'equal)))
-        (let ((spiel-pending-question nil))
-          (spiel--tokenize alias))
-      (if (and spiel-pending-question (not escapep))
-          (list spiel-pending-question tokens)
-        (cl-loop
-         with (acc verb described result)
-         for token in tokens
-         unless (member token '("the")) do
-         (setq acc (string-trim (concat acc (when acc " ") token)))
-         (cond ((null verb)
-                (when-let ((v (spiel--verb (downcase acc))))
-                  (setf (spiel-named<-as v) acc)
-                  (push v result)
-                  (setq verb t acc nil)))
-               ((member token spiel--prepositions)
-                (push token result)
-                (setq acc nil))
-               (t (if-let ((named (spiel-objects-matching (downcase acc) #'spiel-object<-names))
-                           (possible (if described (cl-intersection described named) named)))
-                      (setq possible
-                            (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
-                            result (cons (if (> (length possible) 1) possible (car possible)) result)
-                            acc nil described nil)
-                    (if-let ((possible (spiel-objects-matching (downcase acc) #'spiel-object<-adjectives)))
-                        (setq described (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
-                              acc nil)))))
-         finally (when (> (length acc) 0) (push acc result))
-         finally (when described (push (car described) result))
-         finally return (nreverse result))))))
+  (let* ((tokens (string-split string " " 'omit-nulls))
+         (escapep (when (string-prefix-p "/" (car tokens))
+                    (setf (car tokens) (substring (car tokens) 1)))))
+    (if (and spiel-pending-question (not escapep))
+        (list spiel-pending-question tokens)
+      (cl-loop
+       with (acc verb described result)
+       for token in tokens
+       unless (member token '("the")) do
+       (setq acc (string-trim (concat acc (when acc " ") token)))
+       (cond ((null verb)
+              (when-let ((v (spiel--verb (downcase acc))))
+                (setf (spiel-named<-as v) acc)
+                (push v result)
+                (setq verb t acc nil)))
+             ((member token spiel--prepositions)
+              (push token result)
+              (setq acc nil))
+             (t (if-let ((named (spiel-objects-matching (downcase acc) #'spiel-object<-names))
+                         (possible (if described (cl-intersection described named) named)))
+                    (setq possible
+                          (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
+                          result (cons (if (> (length possible) 1) possible (car possible)) result)
+                          acc nil described nil)
+                  (if-let ((possible (spiel-objects-matching (downcase acc) #'spiel-object<-adjectives)))
+                      (setq described (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
+                            acc nil)))))
+       finally (when (> (length acc) 0) (push acc result))
+       finally (when described (push (car described) result))
+       finally return (nreverse result)))))
 
 (defun spiel-room-description (&optional room)
   "Return ROOM description. ROOM defaults to player's current room."
@@ -575,23 +572,30 @@ If ASK is non-nil, prompt user to disambiguate and return t."
           (forward-char))
         (list start (point))))))
 
+(defun spiel--substitute-aliases (string)
+  "Return copy of STRING with `spiel-command-aliases' replaced."
+  (cl-loop for (regexp . replacement) in spiel-command-aliases do
+           (setq string (replace-regexp-in-string regexp replacement string)))
+  string)
+
 (defun spiel-send-input ()
   "Send the input from input-buffer."
   (interactive)
   (let* ((region (spiel--input-region))
          (raw (apply #'buffer-substring-no-properties region))
-         (input (string-trim (replace-regexp-in-string " +"  " " raw))))
+         (trimmed (string-trim (replace-regexp-in-string " +"  " " raw)))
+         (escapedp (string-prefix-p "/" trimmed))
+         (input (concat
+                 (when escapedp "/")
+                 (spiel--substitute-aliases (if escapedp (substring trimmed 1) trimmed)))))
     (unless (or (and spiel-pending-question
                      (not (eq (spiel-question<-asker spiel-pending-question) 'prompt)))
                 (> (length input) 0))
       (user-error "No input"))
     (delete-region (car region) (cadr region))
-    (let ((display (or (unless spiel-pending-question
-                         (alist-get input spiel-command-aliases nil nil #'equal))
-                       input)))
-      (insert (propertize (if (string-empty-p input) "..." display) 'face
-                          (if spiel-pending-question 'spiel-question 'spiel-command)
-                          'read-only t)))
+    (insert (propertize (if (string-empty-p input) "..." input)
+                        'face (if spiel-pending-question 'spiel-question 'spiel-command)
+                        'read-only t))
     (catch 'turn-over
       (when-let ((result (spiel--do (spiel--tokenize input)))
                  ((stringp result)))
