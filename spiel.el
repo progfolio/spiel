@@ -76,6 +76,11 @@
   "Return ENTITY's name."
   `(car (spiel-named<-names (spiel-ensure-entity ,entity))))
 
+(defmacro spiel-context-get (entity key)
+  "Return ENTITY's context slot value matching KEY."
+  `(let ((o (spiel-ensure-entity ,entity)))
+     (alist-get ,key (spiel-entity<-context o) nil nil #'equal)))
+
 (defun spiel--look (pattern)
   "Look PATTERN."
   (let ((name (spiel-entity-name spiel-player)))
@@ -179,11 +184,6 @@
   (with-current-buffer (get-buffer-create spiel-buffer)
     (pop-to-buffer (current-buffer)
                    '((display-buffer-reuse-window display-buffer-same-window)))))
-
-(defmacro spiel-context-get (entity key)
-  "Return ENTITY's context slot value matching KEY."
-  `(let ((o (spiel-ensure-entity ,entity)))
-     (alist-get ,key (spiel-entity<-context o) nil nil #'equal)))
 
 (defun spiel-prompt-string (format &optional placeholder)
   "Return PROMPT string from FORMAT.
