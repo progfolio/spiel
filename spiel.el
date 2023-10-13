@@ -459,7 +459,7 @@ If ASK is non-nil, prompt user to disambiguate and return t."
                               (when-let ((adj (car (spiel-object<-adjectives it))))
                                 (concat adj " "))
                               (car (spiel-object<-names it))))
-                           inventory "\n  -"))
+                           inventory "\n  - "))
       (format (if actorp "%s is not holding anything."
                 "There is nothing inside the %s")
               name))))
