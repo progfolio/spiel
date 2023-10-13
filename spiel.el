@@ -407,7 +407,9 @@ If ENTITY is non-nil, set question asker."
                            ((spiel-named-p el) (spiel-named<-as el))
                            ((spiel-objects-p el) (spiel-named<-as (car el)))
                            (t el)))
-             (if (spiel-object-p pattern) (list pattern) pattern) " "))
+             (if (or (spiel-object-p pattern) (stringp pattern))
+                 (list pattern) pattern)
+             " "))
 
 (defun spiel--disambiguation-prompt (objs)
   "Set up disambiguation prompt for OBJS."
