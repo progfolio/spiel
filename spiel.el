@@ -474,8 +474,9 @@ If ASK is non-nil, prompt user to disambiguate and return t."
   (pcase pattern
     (`(,(and (pred spiel-question-p)) . ,_) (spiel--answer pattern))
     ((and `(,verb . ,rest) (guard (spiel-verb-p verb)))
-     (or (spiel--do rest verb)
-         (spiel--do (spiel--pattern-to-query pattern))))
+     (or
+      (spiel--do rest verb)
+      (spiel--do (spiel--pattern-to-query pattern))))
     (_ (format "%s can't %S" (spiel-entity-name spiel-player)
                (spiel--pattern-to-query pattern)))))
 
