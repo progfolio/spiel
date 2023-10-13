@@ -349,7 +349,7 @@ If ENTITY is non-nil, set question asker."
                     (cl-remove-if-not #'spiel-object-p spiel-entities)
                     :key (lambda (o) (mapcar #'downcase (funcall slot o)))))
 
-(defun spiel--pattern (string)
+(defun spiel--tokenize (string)
   "Return ojbects pattern from STRING."
   (let ((tokens (string-split string " " 'omit-nulls))
         (escapep nil))
@@ -358,7 +358,7 @@ If ENTITY is non-nil, set question asker."
     (if-let (((or (not spiel-pending-question) escapep))
              (alias (alist-get (car tokens) spiel-command-aliases nil nil #'equal)))
         (let ((spiel-pending-question nil))
-          (spiel--pattern alias))
+          (spiel--tokenize alias))
       (if (and spiel-pending-question (not escapep))
           (list spiel-pending-question tokens)
         (cl-loop
@@ -542,7 +542,7 @@ If ASK is non-nil, prompt user to disambiguate and return t."
                           (if spiel-pending-question 'spiel-question 'spiel-command)
                           'read-only t)))
     (catch 'turn-over
-      (when-let ((result (spiel--do (spiel--pattern input)))
+      (when-let ((result (spiel--do (spiel--tokenize input)))
                  ((stringp result)))
         (spiel-print "\n" result "\n\n"))
       (spiel-insert-prompt (and spiel-pending-question (not (spiel--prompt-pending-p)))))))
