@@ -242,7 +242,8 @@ IF SPEECH is non-nil insert speaker prompt."
   "Return ENTITY's room. ENTITY defaults to player."
   (let ((obj (spiel-ensure-entity (or entity spiel-player)))
         container last)
-    (while (setq last container container (spiel-ensure-entity (cdr (spiel-object<-location obj))))
+    (while (setq last container
+                 container (ignore-errors (spiel-ensure-entity (cdr (spiel-object<-location obj)))))
       (setq obj container))
     last))
 
