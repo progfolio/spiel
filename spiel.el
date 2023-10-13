@@ -55,6 +55,7 @@
 (defcustom spiel-command-aliases
   '(("r" . "reset")
     ("q" . "quit")
+    ("i" . "describe inventory")
     ("n" . "go north")
     ("s" . "go south")
     ("e" . "go east")
