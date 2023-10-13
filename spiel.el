@@ -132,10 +132,59 @@
              (throw 'turn-over t))
          (format "Can't go %S." (spiel--pattern-to-query pattern))))))
 
+(defun spiel--put (pattern)
+  "Put PATTERN."
+  (pcase pattern
+    ('nil "Put what?")
+    ((and `(,obj) (guard (spiel-object-p obj)))
+     (format "Put %s where?" obj))
+    ((or (and `(,obj "on") (guard (spiel-object-p obj)))
+         (and `("on" ,obj) (guard (spiel-object-p obj))))
+     (cond
+      ((equal (spiel-object<-location obj) `(on . ,(spiel-object<-id spiel-player)))
+       (format "%s is already wearing %s." (spiel-entity-name spiel-player) (spiel-entity-name obj)))
+      ((spiel-actor-p obj) "You puttin me on!?")
+      ((not (spiel-object-has-p spiel-player obj))
+       (format "%s doesn't have %s." (spiel-entity-name spiel-player) (spiel-object<-as obj)))
+      ((spiel-object-has-p spiel-player obj)
+       (or (spiel--do (list "on" spiel-player) obj)
+           (progn
+             (setf (spiel-object<-location obj) (cons 'on (spiel-object<-id spiel-player)))
+             (format "%s put on the %s." (spiel-entity-name spiel-player) (spiel-entity-name obj)))))))))
+
+(defun spiel--take (pattern)
+  "Take PATTERN."
+  (let ((name (spiel-entity-name spiel-player)))
+    (pcase pattern
+      ('nil "Take what?")
+      ((and (or `(,obj) obj) (guard (spiel-object-p obj)))
+       (or (spiel--do "take" obj)
+           (cond
+            ((spiel-actor-p obj) (format "I don't think %s can take them." name))
+            ((spiel-object-has-p spiel-player obj)
+             (format "%s already has the %s" name (spiel-entity-name obj)))
+            ((not (spiel-context-get obj 'immobile))
+             (condition-case err
+                 (progn
+                   (spiel-object-give spiel-player obj)
+                   ;;@FIX: use first adjective?
+                   (format "%s took the %s." name (spiel-entity-name obj)))
+               (error (spiel-print err))))
+            (t (spiel--take (list (spiel-named<-as obj)))))))
+      ((and `(,objs) (guard (spiel-objects-p objs)))
+       ;;@FIX: shouldn't hardcode filter here.
+       (spiel--disambiguate objs #'spiel-object-in-room-p (lambda (o) (spiel--take o))))
+      (_ (format "Can't take %S." (spiel--pattern-to-query pattern))))))
+
 (defvar-local spiel-verbs
     (list
      (spiel-verb :names '("look" "glance" "gaze" "stare" "see" "peer" "peek" "watch" "examine" "describe" "study" "inspect" "scan" "scrutinize")
                  :actions #'spiel--look)
+     (spiel-verb :names '("put" "place" "set" "position")
+                 :actions #'spiel--put
+                 :disambiguator (lambda (o) (spiel-object-has-p spiel-player o)))
+     (spiel-verb :names '("take" "get" "grab" "acquire")
+                 :actions #'spiel--take)
      (spiel-verb :names '("say" "tell" "shout" "whisper" "tell"))
      (spiel-verb :names '("go" "move" "walk" "run" "crawl")
                  :actions #'spiel--go)
