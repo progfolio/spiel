@@ -74,7 +74,7 @@
 
 (defmacro spiel-entity-name (entity)
   "Return ENTITY's name."
-  `(car (spiel-object<-names (spiel-ensure-entity ,entity))))
+  `(car (spiel-named<-names (spiel-ensure-entity ,entity))))
 
 (defun spiel--look (pattern)
   "Look PATTERN."
