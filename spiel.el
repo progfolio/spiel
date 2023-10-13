@@ -378,7 +378,7 @@ If ENTITY is non-nil, set question asker."
                            (possible (if described (cl-intersection described named) named)))
                       (setq possible
                             (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
-                            result (cons possible result)
+                            result (cons (if (> (length possible) 1) possible (car possible)) result)
                             acc nil described nil)
                     (if-let ((possible (spiel-objects-matching (downcase acc) #'spiel-object<-adjectives)))
                         (setq described
