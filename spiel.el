@@ -368,6 +368,7 @@ If ENTITY is non-nil, set question asker."
          (setq acc (string-trim (concat acc (when acc " ") token)))
          (cond ((null verb)
                 (when-let ((v (spiel--verb (downcase acc))))
+                  (setf (spiel-named<-as v) acc)
                   (push v result)
                   (setq verb t acc nil)))
                ((member token spiel--prepositions)
