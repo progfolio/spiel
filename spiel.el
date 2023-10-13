@@ -167,7 +167,8 @@
 (defun spiel-ensure-entity (id-or-entity)
   "Return ENTITY from ID-OR-ENTITY."
   (if (spiel-entity-p id-or-entity) id-or-entity
-    (unless (symbolp id-or-entity) (signal 'wrong-type-argument `(symbolp ,id-or-entity)))
+    (unless (and id-or-entity (symbolp id-or-entity))
+      (signal 'wrong-type-argument `(symbolp ,id-or-entity)))
     (cl-find id-or-entity spiel-entities :key #'spiel-entity<-id)))
 
 (defvar spiel-mode-map
