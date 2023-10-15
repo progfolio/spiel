@@ -61,6 +61,7 @@
     ("^e$" . "go east")
     ("^w$" . "go west")
     ("\\(?:\\(?:^\\|[[:space:]]+\\)l\\(?:$\\|[[:space:]]+\\)\\)" . "look ")
+    ("^o " . "open ")
     ("@\\(.*\\)" . "look at \\1")
     ("^la " . "look at ")
     ("^li " . "look in ")
@@ -279,6 +280,18 @@ If SINGULAR is non-nil, use the singular form."
        ;;@FIX: shouldn't hardcode filter here.
        (spiel--disambiguate objs #'spiel-object-in-room-p (lambda (o) (spiel--take o)))))))
 
+(defun spiel--open (pattern)
+  "Open PATTERN."
+  (pcase pattern
+    ((and `(,obj) (guard (spiel-object-p obj)))
+     (or (spiel--do "open" obj)
+         (cond
+          ((not (assoc 'closed (spiel-object<-context obj)))
+           (format "Can't open %s." (spiel-entity-name obj)))
+          ((not (spiel-context-get obj 'closed)) "It's already open.")
+          (t (setf (spiel-context-get obj 'closed) nil)
+             (format "Opened %s." (spiel-named<-as obj))))))))
+
 (defvar-local spiel-verbs
     (list
      (spiel-verb :names '("look" "glance" "gaze" "stare" "see" "peer" "peek" "watch" "examine" "describe" "study" "inspect" "scan" "scrutinize")
@@ -291,6 +304,7 @@ If SINGULAR is non-nil, use the singular form."
      (spiel-verb :names '("say" "tell" "shout" "whisper" "tell"))
      (spiel-verb :names '("go" "move" "walk" "run" "crawl")
                  :actions #'spiel--go)
+     (spiel-verb :names '("open") :actions #'spiel--open)
      (spiel-verb :names '("attack" "hit"))
      (spiel-verb :names '("inventory"))
      (spiel-verb :names '("pull"))
