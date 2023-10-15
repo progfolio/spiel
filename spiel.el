@@ -66,8 +66,8 @@
   :type 'alist)
 
 (defconst spiel--unlimited-capacity most-positive-fixnum)
-
-(defconst spiel--prepositions '("in" "on" "at" "around" "behind" "inside" "beside"))
+(defconst spiel--vowels '("a" "e" "i" "o" "u" "A" "E" "I" "O" "U"))
+(defconst spiel--articles '("the" "a" "an"))
 
 (defvar-local spiel-buffer "*game*")
 (defvar-local spiel-entities nil "List of game entities.")
@@ -413,36 +413,29 @@ If ENTITY is non-nil, set question asker."
 
 (defun spiel--tokenize (string)
   "Return ojbects pattern from STRING."
-  (let* ((tokens (string-split string " " 'omit-nulls))
-         (escapep (when (string-prefix-p "/" (car tokens))
-                    (setf (car tokens) (substring (car tokens) 1)))))
-    (if (and spiel-pending-question (not escapep))
-        (list spiel-pending-question tokens)
-      (cl-loop
-       with (acc verb described result)
-       for token in tokens
-       unless (member token '("the")) do
-       (setq acc (string-trim (concat acc (when acc " ") token)))
-       (cond ((null verb)
-              (when-let ((v (spiel--verb (downcase acc))))
-                (setf (spiel-named<-as v) acc)
-                (push v result)
-                (setq verb t acc nil)))
-             ((member token spiel--prepositions)
-              (push token result)
-              (setq acc nil))
-             (t (if-let ((named (spiel-objects-matching (downcase acc) #'spiel-object<-names))
-                         (possible (if described (cl-intersection described named) named)))
-                    (setq possible
-                          (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
-                          result (cons (if (> (length possible) 1) possible (car possible)) result)
-                          acc nil described nil)
-                  (if-let ((possible (spiel-objects-matching (downcase acc) #'spiel-object<-adjectives)))
-                      (setq described (mapc (lambda (o) (setf (spiel-named<-as o) acc)) possible)
-                            acc nil)))))
-       finally (when (> (length acc) 0) (push acc result))
-       finally (when described (push (car described) result))
-       finally return (nreverse result)))))
+  (cl-loop
+   with (verb described result)
+   with tokens = (mapcar #'string-trim (string-split string " " 'omit-nulls))
+   with escapep = (when (string-prefix-p "/" (car tokens))
+                    (setf (car tokens) (substring (car tokens) 1)))
+   initially (when (and spiel-pending-question (not escapep))
+               (cl-return (list spiel-pending-question tokens)))
+   for token in tokens do
+   (cond
+    ((member token spiel--articles) nil)
+    ((null verb) (when-let ((v (spiel--verb (downcase token))))
+                   (setf (spiel-named<-as v) token
+                         verb (push v result))))
+    (t (if-let ((named (spiel-objects-matching token #'spiel-object<-names))
+                (possible
+                 (mapc (lambda (o) (setf (spiel-named<-as o) token))
+                       (if described (cl-intersection described named) named))))
+           (setq result (cons (if (cdr possible) possible (car possible)) result)
+                 described nil)
+         (if-let ((possible (spiel-objects-matching token #'spiel-object<-adjectives)))
+             (setq described possible)
+           (push token result)))))
+   finally return (nreverse (append (when described (list described)) result))))
 
 (defun spiel-room-description (&optional room)
   "Return ROOM description. ROOM defaults to player's current room."
