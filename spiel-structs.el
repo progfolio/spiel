@@ -70,7 +70,9 @@
                            (:conc-name spiel-actor<-))
   avatar)
 
-(cl-defstruct (spiel-room (:include spiel-object (capacity t))
+(cl-defstruct (spiel-room (:include spiel-object
+                                    (capacity '((in . t)))
+                                    (context '((immobile . t))))
                           (:constructor spiel-room)
                           (:type list) (:copier nil) (:named)
                           (:conc-name spiel-room<-)))
