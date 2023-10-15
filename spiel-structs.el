@@ -29,6 +29,7 @@
                             (:type list) (:copier nil) (:named)
                             (:conc-name spiel-entity<-))
   id context)
+;;@TODO: document flags wearable immobile invisible
 
 (cl-defstruct (spiel-question (:include spiel-entity)
                               (:constructor spiel-question)
