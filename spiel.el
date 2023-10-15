@@ -196,6 +196,18 @@ If SINGULAR is non-nil, use the singular form."
            (spiel-insert-prompt)
            (throw 'turn-over t))))))
 
+(defun spiel-flagged-p (object &rest flags)
+  "Return t if all FLAGS are non-nil in OBJECT's context."
+  (cl-every (lambda (flag) (spiel-context-get object flag)) flags))
+
+(defun spiel-movable-p (object)
+  "Return t if OBJECT can be moved, otherwise nil."
+  (let* ((location (spiel-object<-location (spiel-ensure-entity object)))
+         (container (cdr location)))
+    (not (or (spiel-context-get object 'immobile)
+             (and (eq (car location) 'in)
+                  (spiel-flagged-p container 'immobile 'closed))))))
+
 (defun spiel--put (pattern)
   "Put PATTERN."
   (pcase pattern
