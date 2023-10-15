@@ -581,29 +581,43 @@ If ASK is non-nil, prompt user to disambiguate and return t."
            (setq string (replace-regexp-in-string regexp replacement string)))
   string)
 
-(defun spiel-send-input ()
-  "Send the input from input-buffer."
-  (interactive)
+(defun spiel-replace-input (string)
+  "Replace input region with STRING."
+  (apply #'delete-region (spiel--input-region))
+  (insert string))
+
+(defun spiel-print-input (input)
+  "Print INPUT."
+  (spiel-replace-input
+   (propertize (if (string-empty-p input) "..."
+                 (replace-regexp-in-string " +" " " input))
+               'face (if spiel-pending-question 'spiel-question 'spiel-command)
+               'read-only t)))
+
+(defun spiel-input ()
+  "Return trimmed input string with aliases substituted."
   (let* ((region (spiel--input-region))
          (raw (apply #'buffer-substring-no-properties region))
          (trimmed (string-trim (replace-regexp-in-string " +"  " " raw)))
-         (escapedp (string-prefix-p "/" trimmed))
-         (input (concat
-                 (when escapedp "/")
-                 (spiel--substitute-aliases (if escapedp (substring trimmed 1) trimmed)))))
-    (unless (or (and spiel-pending-question
-                     (not (eq (spiel-question<-asker spiel-pending-question) 'prompt)))
-                (> (length input) 0))
-      (user-error "No input"))
-    (delete-region (car region) (cadr region))
-    (insert (propertize (if (string-empty-p input) "..." input)
-                        'face (if spiel-pending-question 'spiel-question 'spiel-command)
-                        'read-only t))
+         (escapedp (string-prefix-p "/" trimmed)))
+    (concat
+     (when escapedp "/")
+     (spiel--substitute-aliases (if escapedp (substring trimmed 1) trimmed)))))
+
+(defun spiel-send-input ()
+  "Send the input from input-buffer."
+  (interactive)
+  (let ((input (setq spiel-last-input (spiel-input)))
+        (questionp (and spiel-pending-question (not (spiel-pending-prompt-p)))))
+    (unless (or questionp (> (length input) 0)) (user-error "No input"))
+    (spiel-print-input input)
+    (unless (string-empty-p input) (push input spiel-input-history))
     (catch 'turn-over
-      (when-let ((result (spiel--do (spiel--tokenize input)))
+      (when-let ((result (spiel--do (or (setq spiel-last-parsed (spiel--tokenize input))
+                                        input)))
                  ((stringp result)))
         (spiel-print "\n" result "\n\n"))
-      (spiel-insert-prompt (and spiel-pending-question (not (spiel--prompt-pending-p)))))))
+      (spiel-insert-prompt questionp))))
 
 (defun spiel-quit ()
   "Quit game."
