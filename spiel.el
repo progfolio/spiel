@@ -87,6 +87,11 @@
   (declare (side-effect-free t))
   (eq t (compare-strings string1 0 nil string2 0 nil t)))
 
+(defun spiel-capitalize (string)
+  "Return copy of STRING with first letter capitalized."
+  (setf (aref string 0) (upcase (aref string 0)))
+  string)
+
 (defun spiel-entity-name (entity)
   "Return ENTITY's name."
   (car (spiel-named<-names (spiel-ensure-entity entity))))
