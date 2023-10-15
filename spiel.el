@@ -74,6 +74,9 @@
 (defvar-local spiel-player nil "Game player object.")
 (defvar-local spiel-pending-question nil)
 (defvar-local spiel-print-cursor-timer nil "Timer to debounce post-printing cursor display.")
+(defvar-local spiel-input-history nil)
+(defvar-local spiel-last-parsed nil)
+(defvar-local spiel-last-input nil)
 
 (defmacro spiel-entity-name (entity)
   "Return ENTITY's name."
