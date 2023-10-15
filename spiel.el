@@ -538,8 +538,7 @@ If ASK is non-nil, prompt user to disambiguate and return t."
      (or
       (spiel--do rest verb)
       (spiel--do (spiel--pattern-to-query pattern))))
-    (_ (format "%s can't %S" (spiel-entity-name spiel-player)
-               (spiel--pattern-to-query pattern)))))
+    (_ (format "Can't %s." spiel-last-input))))
 
 (defun spiel--do (pattern &optional entity)
   "Do PATTERN with ENTITY."
