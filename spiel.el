@@ -739,12 +739,15 @@ If ASK is non-nil, prompt user to disambiguate and return t."
      (when escapedp "/")
      (spiel--substitute-aliases (if escapedp (substring trimmed 1) trimmed)))))
 
+(defun spiel-dialogue-p ()
+  "Return t when an actor is asking a quesiton, otherwise nil."
+  (and spiel-pending-question (not (spiel-pending-prompt-p))))
+
 (defun spiel-send-input ()
   "Send the input from input-buffer."
   (interactive)
-  (let ((input (setq spiel-last-input (spiel-input)))
-        (questionp (and spiel-pending-question (not (spiel-pending-prompt-p)))))
-    (unless (or questionp (> (length input) 0)) (user-error "No input"))
+  (let ((input (setq spiel-last-input (spiel-input))))
+    (unless (or (spiel-dialogue-p) (> (length input) 0)) (user-error "No input"))
     (spiel-print-input input)
     (unless (string-empty-p input) (push input spiel-input-history))
     (catch 'turn-over
@@ -752,7 +755,7 @@ If ASK is non-nil, prompt user to disambiguate and return t."
                                         input)))
                  ((stringp result)))
         (spiel-print "\n" result "\n\n"))
-      (spiel-insert-prompt questionp))))
+      (spiel-insert-prompt (spiel-dialogue-p)))))
 
 (defun spiel-quit ()
   "Quit game."
