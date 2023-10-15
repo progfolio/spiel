@@ -78,9 +78,9 @@
 (defvar-local spiel-last-parsed nil)
 (defvar-local spiel-last-input nil)
 
-(defmacro spiel-entity-name (entity)
+(defun spiel-entity-name (entity)
   "Return ENTITY's name."
-  `(car (spiel-named<-names (spiel-ensure-entity ,entity))))
+  (car (spiel-named<-names (spiel-ensure-entity entity))))
 
 (defmacro spiel-context-get (entity key)
   "Return ENTITY's context slot value matching KEY."
