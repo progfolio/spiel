@@ -210,23 +210,47 @@ If SINGULAR is non-nil, use the singular form."
 
 (defun spiel--put (pattern)
   "Put PATTERN."
-  (pcase pattern
-    ('nil "Put what?")
-    ((and `(,obj) (guard (spiel-object-p obj)))
-     (format "Put %s where?" obj))
-    ((or (and `(,obj "on") (guard (spiel-object-p obj)))
-         (and `("on" ,obj) (guard (spiel-object-p obj))))
-     (cond
-      ((equal (spiel-object<-location obj) `(on . ,(spiel-object<-id spiel-player)))
-       (format "%s is already wearing %s." (spiel-entity-name spiel-player) (spiel-entity-name obj)))
-      ((spiel-actor-p obj) "You puttin me on!?")
-      ((not (spiel-object-has-p spiel-player obj))
-       (format "%s doesn't have %s." (spiel-entity-name spiel-player) (spiel-object<-as obj)))
-      ((spiel-object-has-p spiel-player obj)
-       (or (spiel--do (list "on" spiel-player) obj)
-           (progn
-             (setf (spiel-object<-location obj) (cons 'on (spiel-object<-id spiel-player)))
-             (format "%s put on the %s." (spiel-entity-name spiel-player) (spiel-entity-name obj)))))))))
+  (let ((name (spiel-entity-name spiel-player)))
+    (pcase pattern
+      ('nil "Put what?")
+      ((and `(,obj) (guard (spiel-object-p obj))) "Where?")
+      ((or (and `(,obj "on") (guard (spiel-object-p obj)))
+           (and `("on" ,obj) (guard (spiel-object-p obj))))
+       (cond
+        ((equal (spiel-object<-location obj) `(on . ,(spiel-object<-id spiel-player)))
+         (format "%s is already wearing %s." name (spiel-entity-name obj)))
+        ((not (spiel-object-has-p spiel-player obj))
+         (format "%s doesn't have %s." name (spiel-object<-as obj)))
+        ((not (spiel-flagged-p obj 'wearable))
+         (format "Can't wear %s." (spiel-object<-as obj)))
+        ((spiel-object-has-p spiel-player obj)
+         (or (spiel--do (list "on" spiel-player) obj)
+             (progn
+               (setf (spiel-object<-location obj) (cons 'on (spiel-object<-id spiel-player)))
+               (format "%s put on the %s." name (spiel-entity-name obj)))))))
+      ((and `(,source ,(and (or "in" "on") where) ,destination)
+            (guard (cl-every #'spiel-object-p (list source destination))))
+       (let ((source-name (spiel-entity-name source))
+             (destination-name (spiel-entity-name destination))
+             (location (intern where)))
+         (cond
+          ((or (equal source destination)
+               (member destination (append (spiel-object-inventory 'in source)
+                                           (spiel-object-inventory 'on source))))
+           nil)
+          ((spiel-context-get destination 'closed)
+           (format "%s is closed."
+                   (spiel-capitalize (spiel-determined-object-phrase destination 'singular))))
+          ((not (alist-get location (spiel-object<-capacity destination))) nil)
+          ((spiel-object-has-p destination source)
+           (format "%s %s %s."
+                   (capitalize source-name)
+                   (if (equal where "on") "is already on" "already has")
+                   (downcase destination-name)))
+          ;; ((not (spiel-object-has-p spiel-player source))
+          ;;  (format "%s doesn't have %s." name source-name))
+          (t ;;@TODO: catch error
+           (spiel-object-put (intern where) destination source))))))))
 
 (defun spiel--take (pattern)
   "Take PATTERN."
