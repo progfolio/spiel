@@ -61,7 +61,10 @@
     ("^e$" . "go east")
     ("^w$" . "go west")
     ("\\(?:\\(?:^\\|[[:space:]]+\\)l\\(?:$\\|[[:space:]]+\\)\\)" . "look ")
-    ("^la " . "look at "))
+    ("@\\(.*\\)" . "look at \\1")
+    ("^la " . "look at ")
+    ("^li " . "look in ")
+    ("^x " . "examine "))
   "Alist of form: (REGEXP . EXPANSION)."
   :type 'alist)
 
