@@ -188,14 +188,13 @@ If SINGULAR is non-nil, use the singular form."
   (pcase pattern
     ('nil "Where?")
     ;;@MAYBE: implement "back" to go to last location?
-    (_ (if-let ((destination (spiel--do pattern (spiel-object-room))))
-           (progn
-             (spiel-object-give destination spiel-player)
-             (run-hooks 'spiel-go-hook)
-             (spiel-print "\n" (spiel-room-description) "\n\n")
-             (spiel-insert-prompt)
-             (throw 'turn-over t))
-         (format "Can't go %S." (spiel--pattern-to-query pattern))))))
+    (_ (when-let ((destination (spiel--do pattern (spiel-object-room))))
+         (progn
+           (spiel-object-put 'in destination spiel-player)
+           (run-hooks 'spiel-go-hook)
+           (spiel-print "\n" (spiel-room-description) "\n\n")
+           (spiel-insert-prompt)
+           (throw 'turn-over t))))))
 
 (defun spiel--put (pattern)
   "Put PATTERN."
