@@ -385,23 +385,55 @@ If RECURSIVE is non-nil, return inventory of all returned objects."
   (eq (cdr (spiel-object<-location (spiel-ensure-entity predicate)))
       (spiel-object<-id (spiel-ensure-entity subject))))
 
-(defun spiel-object-capacity (object)
-  "Return OBJECT's numeric capcity."
-  (let* ((declared (spiel-object<-capacity (spiel-ensure-entity object))))
-    (cond ((eq declared t) most-positive-fixnum)
-          ((null declared) 0)
-          (t declared))))
+(defun spiel-ensure-number (object)
+  "Convert OBJECT to number."
+  (cond ((eq object t) most-positive-fixnum)
+        ((not (numberp object)) 0)
+        (t object)))
 
-;;@FIX: consider object sizes, allow "in" or "on"?
-(defun spiel-object-give (object &rest objects)
-  "Move OBJECTS to OBJECT's inventory."
-  (cl-loop with destination = (spiel-ensure-entity object)
-           with capacity = (spiel-object-capacity destination)
-           with inventory = (spiel-object-inventory destination)
-           for e in (mapcar #'spiel-ensure-entity objects)
-           do (if (> (+ (spiel-object-capacity e) (length inventory)) capacity)
-                  (error "Cannot fit %s" (spiel-object<-id e))
-                (setf (spiel-object<-location e) (cons 'in (spiel-object<-id destination))))))
+(defun spiel-object-capacity (location object)
+  "Return OBJECT's numeric capcity for LOCATION."
+  (spiel-ensure-number (alist-get location (spiel-object<-capacity object))))
+
+(defun spiel-object-put (location object &rest objects)
+  "Move OBJECTS to OBJECT's inventory.
+LOCATION is either the symbol `in` or `on`."
+  (unless (memq location '(in on))
+    (signal 'wrong-type-argument `((or in on) ,location)))
+  (cl-loop
+   with obj
+   with moved
+   with destination = (spiel-ensure-entity object)
+   with capacity = (cl-reduce #'- (spiel-object-inventory location destination)
+                              :initial-value (spiel-object-capacity location destination)
+                              :key (lambda (o) (or (spiel-object<-size o) 0)))
+   while (and (setq obj (pop objects))
+              (setq obj (spiel-ensure-entity obj))
+              (>= (cl-decf capacity (spiel-ensure-number (spiel-object<-size obj))) 0))
+   do
+   (setf (spiel-object<-location obj) (cons location (spiel-object<-id destination)))
+   (push obj moved)
+   finally return
+   (concat (when moved
+             (if (eq destination spiel-player)
+                 (format "Took %s."
+                         (let ((spiel-singular-enumeration t))
+                           (apply #'spiel-enumeration (nreverse moved))))
+               (format "Put %s %s %s."
+                       (let ((spiel-singular-enumeration t))
+                         (apply #'spiel-enumeration (nreverse moved)))
+                       location
+                       (spiel-object-noun-phrase object))))
+           (when (and moved (or objects obj)) "\n")
+           (when-let ((remaining (append objects obj)))
+             (if (eq destination spiel-player)
+                 "Inventory full."
+               (format "Could not fit %s."
+                       (replace-regexp-in-string
+                        "^an? " "" (apply #'spiel-enumeration
+                                          (if (spiel-object-p remaining)
+                                              (list remaining)
+                                            remaining)))))))))
 
 (defun spiel--type (&rest strings)
   "Type STRINGS in game's output buffer."
