@@ -158,22 +158,29 @@ If SINGULAR is non-nil, use the singular form."
        (spiel--disambiguate
         objs #'spiel-object-in-room-p
         (lambda (obj)
-          (if (not (spiel-object-p obj))
-              (format "%s can't do that." name)
-            (cond
-             ((eq obj spiel-player) (format "%s takes a deep breath and looks inward..." name))
-             ((spiel-actor-p obj) (format "%s does not have x-ray vision." name))
-             (t (spiel--describe-inventory obj)))))))
+          (when (spiel-object-p obj)
+            (or
+             (spiel--do "look in" obj)
+             (cond
+              ((spiel-context-get obj 'closed) "It's closed.")
+              ((eq obj spiel-player) (format "%s takes a deep breath and looks inward..." name))
+              ((spiel-actor-p obj) (format "%s does not have x-ray vision." name))
+              (t (spiel--describe-inventory obj))))))))
       ((or (and `(,objs) (guard (spiel-objects-p objs))) (and objs (pred spiel-objects-p)))
        (spiel--disambiguate objs #'spiel-object-in-room-p #'spiel--look))
       ((or (and obj (pred spiel-object-p) (pred spiel-object-in-room-p))
            (and `(,obj) (guard (and (spiel-object-p obj) (spiel-object-in-room-p obj)))))
-       (or (spiel--do pattern obj)
-           (spiel-object<-details obj)
-           (spiel-object<-description obj)
+       (or (spiel--do "look" obj)
+           (concat
+            (or (spiel-object<-details obj)
+                (spiel-object<-description obj))
+            (when-let (((not (spiel-context-get obj 'closed)))
+                       (inventory (spiel--describe-inventory obj))
+                       ;;@FIX: shouldn't be this ad-hoc
+                       ((not (equal inventory "It's Empty."))))
+              (concat "\n" inventory)))
            ;;@FIX: Replace with non-developer message.
-           (format "@TODO: give %s details or description" (spiel-object<-id obj))))
-      (_ (format "%s can't do that." name)))))
+           (format "@TODO: give %s details or description" (spiel-object<-id obj)))))))
 
 (defvar spiel-go-hook nil "Hook run after player changes destination via the \"go\" verb.")
 (defun spiel--go (pattern)
