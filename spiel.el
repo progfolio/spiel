@@ -171,6 +171,16 @@
   (let ((name (spiel-entity-name spiel-player)))
     (pcase pattern
       ('nil "Take what?")
+      ((and `("all" ,(and (or "in" "on" "from") location) ,obj) (guard (spiel-object-p obj)))
+       (let* ((load (spiel-object-inventory 'on obj))
+              (location (if (not (equal location "from"))
+                            location
+                          (if load 'on 'in))))
+         (cl-loop
+          for o in (spiel-object-inventory location obj)
+          collect (spiel--do (list (car spiel-last-parsed) o))
+          into responses
+          finally return (string-join responses "\n"))))
       ((and (or `(,obj) obj) (guard (spiel-object-p obj)))
        (or (spiel--do "take" obj)
            (cond
@@ -310,11 +320,12 @@ IF SPEECH is non-nil insert speaker prompt."
       (setq obj container))
     last))
 
-(defun spiel-object-inventory (object &optional _recursive)
-  "Return list of objects in OBJECT.
+(defun spiel-object-inventory (location object &optional _recursive)
+  "Return list of objects in OBJECT's LOCATION.
 If RECURSIVE is non-nil, return inventory of all returned objects."
+  (unless (memq location '(in on)) (signal 'wrong-type-argument `((or in on) ,location)))
   (cl-loop with id = (if (symbolp object) object (spiel-object<-id object))
-           with target = (cons 'in id)
+           with target = (cons location id)
            for obj in (cl-remove-if-not #'spiel-object-p spiel-entities)
            when (equal (spiel-object<-location obj) target)
            collect obj))
@@ -444,7 +455,7 @@ If ENTITY is non-nil, set question asker."
     (string-join
      (cons (spiel-object<-description room)
            (delq nil (mapcar (lambda (o) (spiel-object<-description o))
-                             (cl-remove spiel-player (spiel-object-inventory room)))))
+                             (cl-remove spiel-player (spiel-object-inventory 'in room)))))
      "\n")))
 
 (defun spiel-objects-p (object)
