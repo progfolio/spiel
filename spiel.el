@@ -101,6 +101,42 @@
   `(let ((o (spiel-ensure-entity ,entity)))
      (alist-get ,key (spiel-entity<-context o) nil nil #'equal)))
 
+(defun spiel-linking-verb (strings)
+  "Return linking verb for STRINGS."
+  (if (consp strings)
+      (if (= (length strings) 1) "is" "are")
+    (if (or (member (downcase strings) '("you" "they" "we")))
+        "are" (if (equal strings "I") "am" "is"))))
+
+(defun spiel-indefinite-article (string)
+  "Return indefinite article for STRING."
+  (if (member (substring string 0 1) spiel--vowels) "an" "a"))
+
+(defun spiel-object-noun-phrase (object)
+  "Return OBJECT's first adjective and first name."
+  (let* ((o (spiel-ensure-entity object))
+         (adj (car (spiel-object<-adjectives o))))
+    (concat adj (when adj " ") (spiel-entity-name o))))
+
+(defun spiel-determined-object-phrase (object &optional singular)
+  "Return a indefinite article and noun phrase for OBJECT.
+If SINGULAR is non-nil, use the singular form."
+  (let ((phrase (spiel-object-noun-phrase object)))
+    (concat (if singular "the" (spiel-indefinite-article phrase)) " " phrase)))
+
+(defvar spiel-singular-enumeration nil)
+(defun spiel-enumeration (&rest objects)
+  "Return string listing OBJECTS."
+  (setq objects (mapcar #'spiel-ensure-entity objects))
+  (let* ((count (length objects))
+         (first (pop objects))
+         (last (car (last objects))))
+    (concat (spiel-determined-object-phrase first spiel-singular-enumeration)
+            (if (= count 2) " " (when (> count 2) ", "))
+            (mapconcat #'spiel-object-noun-phrase (butlast objects) ", ")
+            (when (> count 2) ", ")
+            (when last (concat "and " (spiel-determined-object-phrase last))))))
+
 (defun spiel--look (pattern)
   "Look PATTERN."
   (let ((name (spiel-entity-name spiel-player)))
