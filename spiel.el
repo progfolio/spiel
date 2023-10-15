@@ -258,7 +258,7 @@ If PLACEHOLDER is non-nil, prompt's display is set to that."
   (with-current-buffer spiel-buffer
     (goto-char (cadr (spiel--input-region)))))
 
-(defun spiel--prompt-pending-p ()
+(defun spiel-pending-prompt-p ()
   "Return t if prompt is pending, otherwise nil."
   (and spiel-pending-question
        (eq (spiel-question<-asker spiel-pending-question) 'prompt)))
