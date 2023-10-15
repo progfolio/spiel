@@ -78,6 +78,12 @@
 (defvar-local spiel-last-parsed nil)
 (defvar-local spiel-last-input nil)
 
+;;@COMPAT: copied from Emacs 29 `string-equal-ignore-case'.
+(defsubst spiel--string-equal (string1 string2)
+  "Compare STRING1 and STRING2 case-insensitively."
+  (declare (side-effect-free t))
+  (eq t (compare-strings string1 0 nil string2 0 nil t)))
+
 (defun spiel-entity-name (entity)
   "Return ENTITY's name."
   (car (spiel-named<-names (spiel-ensure-entity entity))))
@@ -399,12 +405,11 @@ If ENTITY is non-nil, set question asker."
   "Return VERB object with NAME."
   (cl-find name spiel-verbs :key #'spiel-verb<-names :test #'member))
 
-;;@OPTIMIZE: lots of downcasing here and in parser.
 (defun spiel-objects-matching (string slot)
   "Return list of objects where STRING is member of SLOT."
-  (cl-remove-if-not (apply-partially #'member (downcase string))
-                    (cl-remove-if-not #'spiel-object-p spiel-entities)
-                    :key (lambda (o) (mapcar #'downcase (funcall slot o)))))
+  (cl-loop for o in (cl-remove-if-not #'spiel-object-p spiel-entities)
+           when (cl-find string (funcall slot o) :test #'spiel--string-equal)
+           collect o))
 
 (defun spiel--tokenize (string)
   "Return ojbects pattern from STRING."
