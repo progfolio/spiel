@@ -560,20 +560,22 @@ If ASK is non-nil, prompt user to disambiguate and return t."
 
 (defun spiel--describe-inventory (obj)
   "Describe OBJ's inventory."
-  (let ((actorp (spiel-actor-p obj)))
-    (if-let ((name (spiel-entity-name obj))
-             (inventory (spiel-object-inventory obj)))
-        (format "%s %s:\n  - %s" name
-                (if actorp "is holding" "contains")
-                (mapconcat (lambda (it)
-                             (concat
-                              (when-let ((adj (car (spiel-object<-adjectives it))))
-                                (concat adj " "))
-                              (car (spiel-object<-names it))))
-                           inventory "\n  - "))
-      (format (if actorp "%s is not holding anything."
-                "There is nothing inside the %s")
-              name))))
+  (let* ((actorp (spiel-actor-p obj))
+         (name (spiel-entity-name obj))
+         (inventory (spiel-object-inventory 'in obj))
+         (load (spiel-object-inventory 'on obj)))
+    (if (or inventory load)
+        (concat
+         (when load
+           (let ((list (apply #'spiel-enumeration load)))
+             (if actorp (format "%s wearing %s." (spiel-linking-verb name) list)
+               (format "%s are on top of it." (spiel-capitalize list)))))
+         (when (and inventory load) "\n")
+         (when inventory
+           (concat (if actorp name "It")
+                   (if actorp (format " %s holding " (spiel-linking-verb name)) " contains ")
+                   (apply #'spiel-enumeration inventory) ".")))
+      (concat (when (not actorp) "It's ") "Empty."))))
 
 (defun spiel-object-in-room-p (object &optional room)
   "Return t if OBJECT is in ROOM, otherwise nil."
