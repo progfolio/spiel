@@ -165,7 +165,7 @@
       ((and (or `(,obj) obj) (guard (spiel-object-p obj)))
        (or (spiel--do "take" obj)
            (cond
-            ((spiel-actor-p obj) (format "I don't think %s can take them." name))
+            ((spiel-actor-p obj) "Nonsesne.")
             ((spiel-object-has-p spiel-player obj)
              (format "%s already has the %s" name (spiel-entity-name obj)))
             ((not (spiel-context-get obj 'immobile))
