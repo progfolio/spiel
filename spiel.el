@@ -248,19 +248,12 @@ If SINGULAR is non-nil, use the singular form."
            (cond
             ((spiel-actor-p obj) "Nonsesne.")
             ((spiel-object-has-p spiel-player obj)
-             (format "%s already has the %s" name (spiel-entity-name obj)))
-            ((not (spiel-context-get obj 'immobile))
-             (condition-case err
-                 (progn
-                   (spiel-object-give spiel-player obj)
-                   ;;@FIX: use first adjective?
-                   (format "%s took the %s." name (spiel-entity-name obj)))
-               (error (spiel-print err))))
+             (format "%s already has the %s" name (spiel-object-noun-phrase obj)))
+            ((spiel-movable-p obj) (spiel-object-put 'in spiel-player obj))
             (t (spiel--take (list (spiel-named<-as obj)))))))
       ((and `(,objs) (guard (spiel-objects-p objs)))
        ;;@FIX: shouldn't hardcode filter here.
-       (spiel--disambiguate objs #'spiel-object-in-room-p (lambda (o) (spiel--take o))))
-      (_ (format "Can't take %S." (spiel--pattern-to-query pattern))))))
+       (spiel--disambiguate objs #'spiel-object-in-room-p (lambda (o) (spiel--take o)))))))
 
 (defvar-local spiel-verbs
     (list
