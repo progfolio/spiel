@@ -60,9 +60,9 @@
   description
   details
   adjectives
-  location ;;(in . thing) (on . thing)
-  capacity
-  size)
+  location ;;(in . entity-id) (on . entity-id)
+  capacity ;;((in . (or nil t numberp)))
+  (size 1))
 
 (cl-defstruct (spiel-actor (:include spiel-object)
                            (:constructor spiel-actor)
