@@ -578,9 +578,10 @@ If ENTITY is non-nil, set question asker."
   (let ((room (spiel-ensure-entity (or room (spiel-object-room)))))
     (unless (spiel-room-p room) (signal 'wrong-type-argument `(room ,room)))
     (string-join
-     (cons (spiel-object<-description room)
-           (delq nil (mapcar (lambda (o) (spiel-object<-description o))
-                             (cl-remove spiel-player (spiel-object-inventory 'in room)))))
+     (delq nil
+           (mapcar #'spiel-object<-description
+                   (cons room (cl-sort (cl-remove spiel-player (spiel-object-inventory 'in room))
+                                       #'< :key #'spiel-object<-order))))
      "\n")))
 
 (defun spiel-objects-p (object)

@@ -63,7 +63,8 @@
   adjectives
   location ;;(in . entity-id) (on . entity-id)
   capacity ;;((in . (or nil t numberp)))
-  (size 1))
+  (size 1)
+  (order 0))
 
 (cl-defstruct (spiel-actor (:include spiel-object)
                            (:constructor spiel-actor)
