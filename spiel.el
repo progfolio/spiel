@@ -275,8 +275,7 @@ If SINGULAR is non-nil, use the singular form."
             ((spiel-actor-p obj) "Nonsesne.")
             ((spiel-object-has-p spiel-player obj)
              (format "%s already has the %s" name (spiel-object-noun-phrase obj)))
-            ((spiel-movable-p obj) (spiel-object-put 'in spiel-player obj))
-            (t (spiel--take (list (spiel-named<-as obj)))))))
+            ((spiel-movable-p obj) (spiel-object-put 'in spiel-player obj)))))
       ((and `(,objs) (guard (spiel-objects-p objs)))
        ;;@FIX: shouldn't hardcode filter here.
        (spiel--disambiguate objs #'spiel-object-in-room-p (lambda (o) (spiel--take o)))))))
