@@ -220,7 +220,9 @@ If SINGULAR is non-nil, use the singular form."
         ((equal (spiel-object<-location obj) `(on . ,(spiel-object<-id spiel-player)))
          (format "%s is already wearing %s." name (spiel-entity-name obj)))
         ((not (spiel-object-has-p spiel-player obj))
-         (format "%s doesn't have %s." name (spiel-object<-as obj)))
+         (format "%s %s have %s." name
+                 (if (member name '("You" "They")) "don't" "doesn't")
+                 (spiel-object<-as obj)))
         ((not (spiel-flagged-p obj 'wearable))
          (format "Can't wear %s." (spiel-object<-as obj)))
         ((spiel-object-has-p spiel-player obj)
