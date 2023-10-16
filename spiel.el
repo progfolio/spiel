@@ -608,11 +608,9 @@ If ENTITY is non-nil, set question asker."
                        :asker 'prompt
                        :text (format "Which one?")
                        :options
+                       (nreverse
                        (cl-loop for obj in objs collect
-                                (cons (concat (car (spiel-object<-adjectives obj))
-                                              " "
-                                              (car (spiel-object<-names obj)))
-                                      obj)))
+                                (cons (spiel-object-noun-phrase obj) obj))))
   (spiel-ask 'disambiguation))
 
 (defun spiel--disambiguate (things &optional filter callback ask)
