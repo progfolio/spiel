@@ -315,6 +315,8 @@ If SINGULAR is non-nil, use the singular form."
 
 (defun spiel-create-entity (type &rest args)
   "Return entity of TYPE with ARGS."
+  (unless (memq type '(question verb actor object room item))
+    (signal 'wrong-type-argument `((or question verb actor object room item) ,type)))
   (cl-loop for key in '(:names :adjectives) do
            (when-let ((declared (plist-get args key))
                       ((not (listp declared))))
