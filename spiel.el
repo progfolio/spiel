@@ -53,20 +53,21 @@
   :type (or 'float 'integer))
 
 (defcustom spiel-command-aliases
-  '(("^r$" . "reset")
-    ("^q$" . "quit")
-    ("^i$" . "describe inventory")
-    ("^n$" . "go north")
-    ("^s$" . "go south")
-    ("^e$" . "go east")
-    ("^w$" . "go west")
-    ("\\(?:\\(?:^\\|[[:space:]]+\\)l\\(?:$\\|[[:space:]]+\\)\\)" . "look ")
-    ("^o " . "open ")
-    ("@\\(.*\\)" . "look at \\1")
-    ("^la " . "look at ")
-    ("^li " . "look in ")
-    ("^x " . "examine "))
-  "Alist of form: (REGEXP . EXPANSION)."
+  '(("^r$" "reset")
+    ("^q$" "quit")
+    ("^i$" "describe inventory")
+    ("^n$" "go north")
+    ("^s$" "go south")
+    ("^e$" "go east")
+    ("^w$" "go west")
+    ("\\(?:\\(?:^\\|[[:space:]]+\\)l\\(?:$\\|[[:space:]]+\\)\\)" "look ")
+    ("^o " "open ")
+    ("@\\(.*\\)" "look at \\1" 'fixed-case)
+    ("^la " "look at ")
+    ("^li " "look in ")
+    ("^x " "examine "))
+  "Alist of form: (REGEXP . ARGS).
+Args are applied to `replace-regexp-in-string' sans REGEXP and target string."
   :type 'alist)
 
 (defconst spiel--unlimited-capacity most-positive-fixnum)
@@ -713,8 +714,9 @@ If ASK is non-nil, prompt user to disambiguate and return t."
 
 (defun spiel--substitute-aliases (string)
   "Return copy of STRING with `spiel-command-aliases' replaced."
-  (cl-loop for (regexp . replacement) in spiel-command-aliases do
-           (setq string (replace-regexp-in-string regexp replacement string)))
+  (cl-loop for (regexp replacement . args) in spiel-command-aliases do
+           (setq string (apply #'replace-regexp-in-string
+                               `(,regexp ,replacement ,string ,@args))))
   string)
 
 (defun spiel-replace-input (string)
