@@ -150,10 +150,9 @@ If SINGULAR is non-nil, use the singular form."
       (`(,(or "at" "in" "behind")) "Be more specific...")
       ((or `(,(or "at" "in") ,(or "room" "here" "around"))
            `(,(or "around" "here" "room"))
+           (and room (pred spiel-room-p))
            'nil)
        (spiel-room-description))
-      ((and strings (guard (cl-every #'stringp strings)))
-       (format "%s cant do that." name))
       (`("at" . ,rest) (spiel--look (car rest)))
       (`(,(or "in" "into" "inside") ,objs)
        (spiel--disambiguate
