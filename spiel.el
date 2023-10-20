@@ -151,7 +151,7 @@ If SINGULAR is non-nil, use the singular form."
       (`(,(or "at" "in" "behind")) "Be more specific...")
       ((or `(,(or "at" "in") ,(or "room" "here" "around"))
            `(,(or "around" "here" "room"))
-           (and room (pred spiel-room-p))
+           (and _ (pred spiel-room-p))
            'nil)
        (spiel-room-description))
       (`("at" . ,rest) (spiel--look (car rest)))
