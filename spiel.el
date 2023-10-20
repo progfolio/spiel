@@ -611,8 +611,8 @@ If ENTITY is non-nil, set question asker."
                        :text (format "Which one?")
                        :options
                        (nreverse
-                       (cl-loop for obj in objs collect
-                                (cons (spiel-object-noun-phrase obj) obj))))
+                        (cl-loop for obj in objs collect
+                                 (cons (spiel-object-noun-phrase obj) obj))))
   (spiel-ask 'disambiguation))
 
 (defun spiel--disambiguate (things &optional filter callback ask)
