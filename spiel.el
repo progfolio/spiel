@@ -82,6 +82,7 @@ Args are applied to `replace-regexp-in-string' sans REGEXP and target string."
 (defvar-local spiel-input-history nil)
 (defvar-local spiel-last-parsed nil)
 (defvar-local spiel-last-input nil)
+(defvar-local spiel--replaying nil)
 
 ;;@COMPAT: copied from Emacs 29 `string-equal-ignore-case'.
 (defsubst spiel--string-equal (string1 string2)
@@ -402,10 +403,24 @@ IF SPEECH is non-nil insert speaker prompt."
   (run-hooks 'spiel-initialize-hook)
   t)
 
-(defun spiel-reset ()
-  "Reset game."
-  (interactive)
-  (spiel-initialize)
+(defun spiel-reset (&optional replay)
+  "Reset game.
+If REPLAY is non-nil, replay input history.
+A positive integer replays N inputs.
+A negative integer replays all but the last N inputs.
+Any other value will replay all inputs."
+  (interactive "P")
+  (let ((last-inputs (nreverse spiel-input-history))
+        (spiel--replaying replay)
+        (spiel-want-typing (not replay)))
+    (spiel-initialize)
+    (when replay
+      (when (and (numberp replay) (not (zerop replay)))
+        (let* ((negativep (< replay 0))
+              (abs (abs replay))
+              (clamped (min abs (length last-inputs))))
+        (setq last-inputs (cl-subseq last-inputs 0 (if negativep (- clamped) clamped)))))
+      (mapc #'spiel-send-input last-inputs)))
   (ignore-errors (throw 'turn-over t)))
 
 (defun spiel-object-room (&optional entity)
