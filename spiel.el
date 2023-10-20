@@ -747,10 +747,10 @@ If ASK is non-nil, prompt user to disambiguate and return t."
   "Return t when an actor is asking a quesiton, otherwise nil."
   (and spiel-pending-question (not (spiel-pending-prompt-p))))
 
-(defun spiel-send-input ()
-  "Send the input from input-buffer."
+(defun spiel-send-input (&optional input)
+  "Send the INPUT to parser."
   (interactive)
-  (let ((input (setq spiel-last-input (spiel-input))))
+  (let ((input (setq spiel-last-input (or input (spiel-input)))))
     (unless (or (spiel-dialogue-p) (> (length input) 0)) (user-error "No input"))
     (spiel-print-input input)
     (unless (string-empty-p input) (push input spiel-input-history))
