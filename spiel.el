@@ -778,6 +778,7 @@ If ASK is non-nil, prompt user to disambiguate and return t."
 
 (defun spiel-quit ()
   "Quit game."
+  (interactive)
   (spiel-print "\nQuitting game...\n")
   (sit-for 0.5)
   (kill-buffer spiel-buffer)
