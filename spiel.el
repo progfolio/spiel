@@ -310,6 +310,7 @@ If SINGULAR is non-nil, use the singular form."
      (spiel-verb :names '("inventory"))
      (spiel-verb :names '("pull"))
      (spiel-verb :names '("use"))
+     (spiel-verb :names '("clear") :actions (lambda (_) (spiel-clear)))
      (spiel-verb :names '("quit") :actions (lambda (_) (spiel-quit)))
      (spiel-verb :names '("reset") :actions (lambda (_) (spiel-reset)))
      (spiel-verb :names '("give"))))
@@ -768,6 +769,16 @@ If ASK is non-nil, prompt user to disambiguate and return t."
   (setq spiel-entities nil)
   (ignore-errors (throw 'turn-over t)))
 
+(defun spiel-clear ()
+  "Clear game window."
+  (interactive)
+  (with-current-buffer spiel-buffer
+    (let ((inhibit-read-only t))
+      (goto-char (point-max))
+      (forward-line -1)
+      (beginning-of-line)
+      (delete-region (point) (point-min)))
+    "Screen cleared."))
 ;; ;;;###autoload
 ;; (defun spiel-load (file)
 ;;   "Load a game FILE."
