@@ -795,6 +795,15 @@ If ASK is non-nil, prompt user to disambiguate and return t."
       (beginning-of-line)
       (delete-region (point) (point-min)))
     "Screen cleared."))
+
+;;@TODO: make non-blocking.
+(defun spiel-wait-for-key ()
+  "Block until user presses key.
+This will still allow Emacs to redisplay."
+  (unless spiel--replaying
+    (while-no-input (while t (sit-for 1)))
+    (discard-input)))
+
 ;; ;;;###autoload
 ;; (defun spiel-load (file)
 ;;   "Load a game FILE."
