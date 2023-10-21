@@ -410,18 +410,20 @@ A positive integer replays N inputs.
 A negative integer replays all but the last N inputs.
 Any other value will replay all inputs."
   (interactive "P")
-  (let ((last-inputs (nreverse spiel-input-history))
-        (spiel--replaying replay)
-        (spiel-want-typing (not replay)))
-    (spiel-initialize)
-    (when replay
-      (when (and (numberp replay) (not (zerop replay)))
-        (let* ((negativep (< replay 0))
-              (abs (abs replay))
-              (clamped (min abs (length last-inputs))))
-        (setq last-inputs (cl-subseq last-inputs 0 (if negativep (- clamped) clamped)))))
-      (mapc #'spiel-send-input last-inputs)))
-  (ignore-errors (throw 'turn-over t)))
+  (if spiel--replaying
+      "(Ignorning recursive reset)"
+    (let ((last-inputs (nreverse spiel-input-history))
+          (spiel--replaying replay)
+          (spiel-want-typing (not replay)))
+      (spiel-initialize)
+      (when replay
+        (when (and (numberp replay) (not (zerop replay)))
+          (let* ((negativep (< replay 0))
+                 (abs (abs replay))
+                 (clamped (min abs (length last-inputs))))
+            (setq last-inputs (cl-subseq last-inputs 0 (if negativep (- clamped) clamped)))))
+        (mapc #'spiel-send-input last-inputs)))
+    (ignore-errors (throw 'turn-over t))))
 
 (defun spiel-object-room (&optional entity)
   "Return ENTITY's room. ENTITY defaults to player."
