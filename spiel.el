@@ -83,6 +83,8 @@ Args are applied to `replace-regexp-in-string' sans REGEXP and target string."
 (defvar-local spiel-last-parsed nil)
 (defvar-local spiel-last-input nil)
 (defvar-local spiel--replaying nil)
+(defvar-local spiel-self nil)
+(defvar-local spiel-default-verb "look")
 
 ;;@COMPAT: copied from Emacs 29 `string-equal-ignore-case'.
 (defsubst spiel--string-equal (string1 string2)
@@ -140,6 +142,36 @@ If SINGULAR is non-nil, use the singular form."
             (when (> count 2) ", ")
             (when last (concat "and " (spiel-determined-object-phrase last))))))
 
+(defun spiel-interpolate (s &optional entity)
+  "Perform substitutions on S.
+If ENTITY is non-nil it is available as `spiel-self' in substitutions."
+  (with-temp-buffer ;;@OPTIMIZE: use dedicated buffer
+    (delay-mode-hooks
+      (emacs-lisp-mode)
+      (insert s)
+      (goto-char (point-min))
+      ;;@TODO: move syntax to variable
+      (while (re-search-forward "%(" nil 'no-error)
+        (backward-char)
+        (when entity (setq spiel-self (spiel-ensure-entity entity)))
+        (when-let ((sexp (sexp-at-point))
+                   (replacement (format "%s" (save-excursion (eval sexp `((it . ,spiel-self)))))))
+          (delete-region (1- (point)) (progn (forward-sexp) (point)))
+          (insert replacement)))
+      (buffer-string))))
+
+(defun spiel-object-description (obj)
+  "Return description of OBJ."
+  (when-let ((declared (spiel-object<-description (spiel-ensure-entity obj)))
+             (spiel-self obj))
+    (spiel-interpolate (if (functionp declared) (funcall declared) declared) obj)))
+
+(defun spiel-object-details (obj)
+  "Return OBJ details."
+  (when-let ((declared (spiel-object<-details (spiel-ensure-entity obj)))
+             (spiel-self obj))
+    (spiel-interpolate (if (functionp declared) (funcall declared) declared) obj)))
+
 (defun spiel--look (pattern)
   "Look PATTERN."
   (let ((name (spiel-entity-name spiel-player)))
@@ -174,8 +206,8 @@ If SINGULAR is non-nil, use the singular form."
            (and `(,obj) (guard (and (spiel-object-p obj) (spiel-object-in-room-p obj)))))
        (or (spiel--do "look" obj)
            (concat
-            (or (spiel-object<-details obj)
-                (spiel-object<-description obj))
+            (or (spiel-object-details obj)
+                (spiel-object-description obj))
             (when-let (((not (spiel-context-get obj 'closed)))
                        (inventory (spiel--describe-inventory obj))
                        ;;@FIX: shouldn't be this ad-hoc
@@ -576,8 +608,9 @@ If ENTITY is non-nil, set question asker."
            when (cl-find string (funcall slot o) :test #'spiel--string-equal)
            collect o))
 
-(defun spiel--tokenize (string)
-  "Return ojbects pattern from STRING."
+(defun spiel--tokenize (string &optional verbless)
+  "Return ojbects pattern from STRING.
+If VERBLESS is non-nil, skip searching for a verb."
   (cl-loop
    with (verb described result)
    with tokens = (mapcar #'string-trim (string-split string " " 'omit-nulls))
@@ -588,9 +621,9 @@ If ENTITY is non-nil, set question asker."
    for token in tokens do
    (cond
     ((member token spiel--articles) nil)
-    ((null verb) (when-let ((v (spiel--verb (downcase token))))
-                   (setf (spiel-named<-as v) token
-                         verb (push v result))))
+    ((not (or verb verbless)) (when-let ((v (spiel--verb (downcase token))))
+                                (setf (spiel-named<-as v) token
+                                      verb (push v result))))
     (t (if-let ((named (spiel-objects-matching token #'spiel-object<-names))
                 (possible
                  (mapc (lambda (o) (setf (spiel-named<-as o) token))
@@ -608,7 +641,7 @@ If ENTITY is non-nil, set question asker."
     (unless (spiel-room-p room) (signal 'wrong-type-argument `(room ,room)))
     (string-join
      (delq nil
-           (mapcar #'spiel-object<-description
+           (mapcar #'spiel-object-description
                    (cons room (cl-sort (cl-remove spiel-player (spiel-object-inventory 'in room))
                                        #'< :key #'spiel-object<-order))))
      "\n")))
@@ -685,20 +718,28 @@ If ASK is non-nil, prompt user to disambiguate and return t."
   (equal (spiel-object-room (spiel-ensure-entity object))
          (spiel-ensure-entity (or room (spiel-object-room)))))
 
-(defun spiel--default-actions (pattern)
-  "Call default function for PATTERN."
+(defun spiel--default-actions (pattern &optional terminate)
+  "Call default function for PATTERN.
+If TERMINATE is non-nil, do not recurse with catch-all case."
   (pcase pattern
     (`(,(and (pred spiel-question-p)) . ,_) (spiel--answer pattern))
     ((and `(,verb . ,rest) (guard (spiel-verb-p verb)))
      (or
       (spiel--do rest verb)
       (spiel--do (spiel--pattern-to-query pattern))))
-    (_ (format "Can't %s." spiel-last-input))))
+    ((and `(,obj) (guard (spiel-object-p obj)))
+     (spiel--default-actions (list (spiel--verb spiel-default-verb) obj)))
+    (_ (or (unless terminate
+             (spiel--default-actions
+              ;;@TODO: move into tokenizer?
+              (spiel--tokenize (spiel--pattern-to-query pattern) 'verbless) 'terminate))
+           (format "Can't %s." spiel-last-input)))))
 
 (defun spiel--do (pattern &optional entity)
   "Do PATTERN with ENTITY."
   (if-let ((entity)
-           (e (spiel-ensure-entity entity)))
+           (e (spiel-ensure-entity entity))
+           (spiel-self entity))
       (when-let (((spiel-named-p e))
                  (actions (spiel-named<-actions e)))
         (funcall actions pattern))
