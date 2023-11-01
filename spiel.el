@@ -294,6 +294,13 @@ If SINGULAR is non-nil, use the singular form."
           (t (setf (spiel-context-get obj 'closed) nil)
              (format "Opened %s." (spiel-named<-as obj))))))))
 
+(defun spiel--reset (pattern)
+  "Reset based off PATTERN."
+  (pcase pattern
+    ('nil (spiel-reset))
+    (arg (let ((n (ignore-errors (string-to-number (car arg)))))
+           (spiel-reset (if (numberp n) n arg))))))
+
 (defvar-local spiel-verbs
     (list
      (spiel-verb :names '("look" "glance" "gaze" "stare" "see" "peer" "peek" "watch" "examine" "describe" "study" "inspect" "scan" "scrutinize")
@@ -313,7 +320,7 @@ If SINGULAR is non-nil, use the singular form."
      (spiel-verb :names '("use"))
      (spiel-verb :names '("clear") :actions (lambda (_) (spiel-clear)))
      (spiel-verb :names '("quit") :actions (lambda (_) (spiel-quit)))
-     (spiel-verb :names '("reset") :actions (lambda (_) (spiel-reset)))
+     (spiel-verb :names '("reset") :actions #'spiel--reset)
      (spiel-verb :names '("give"))))
 
 (defun spiel-create-entity (type &rest args)
@@ -423,7 +430,8 @@ Any other value will replay all inputs."
                  (clamped (min abs (length last-inputs))))
             (setq last-inputs (cl-subseq last-inputs 0 (if negativep (- clamped) clamped)))))
         (mapc #'spiel-send-input last-inputs)))
-    (ignore-errors (throw 'turn-over t))))
+    (message "spiel game reset")
+    (ignore-errors (throw 'reset t))))
 
 (defun spiel-object-room (&optional entity)
   "Return ENTITY's room. ENTITY defaults to player."
@@ -771,11 +779,12 @@ If ASK is non-nil, prompt user to disambiguate and return t."
     (unless (or (spiel-dialogue-p) (> (length input) 0)) (user-error "No input"))
     (spiel-print-input input)
     (unless (string-empty-p input) (push input spiel-input-history))
-    (catch 'turn-over
-      (when-let ((result (spiel--do (or (setq spiel-last-parsed (spiel--tokenize input))
-                                        input)))
-                 ((stringp result)))
-        (spiel-print "\n" result "\n\n"))
+    (catch 'reset
+      (catch 'turn-over
+        (when-let ((result (spiel--do (or (setq spiel-last-parsed (spiel--tokenize input))
+                                          input)))
+                   ((stringp result)))
+          (spiel-print "\n" result "\n\n")))
       (spiel-insert-prompt (spiel-dialogue-p)))))
 
 (defun spiel-quit ()
