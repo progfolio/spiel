@@ -227,7 +227,6 @@ If ENTITY is non-nil it is available as `spiel-self' in substitutions."
            (spiel-object-put 'in destination spiel-player)
            (run-hooks 'spiel-go-hook)
            (spiel-print "\n" (spiel-room-description) "\n\n")
-           (spiel-insert-prompt)
            (throw 'turn-over t))))))
 
 (defun spiel-flagged-p (object &rest flags)
