@@ -227,7 +227,7 @@ If ENTITY is non-nil it is available as `spiel-self' in substitutions."
            (spiel-object-put 'in destination spiel-player)
            (run-hooks 'spiel-go-hook)
            (spiel-print "\n" (spiel-room-description) "\n\n")
-           (throw 'turn-over t))))))
+           (throw 'spiel-turn-over t))))))
 
 (defun spiel-flagged-p (object &rest flags)
   "Return t if all FLAGS are non-nil in OBJECT's context."
@@ -463,7 +463,7 @@ Any other value will replay all inputs."
             (setq last-inputs (cl-subseq last-inputs 0 (if negativep (- clamped) clamped)))))
         (mapc #'spiel-send-input last-inputs)))
     (message "spiel game reset")
-    (ignore-errors (throw 'reset t))))
+    (ignore-errors (throw 'spiel-reset t))))
 
 (defun spiel-object-room (&optional entity)
   "Return ENTITY's room. ENTITY defaults to player."
@@ -820,8 +820,8 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
     (unless (or (spiel-dialogue-p) (> (length input) 0)) (user-error "No input"))
     (spiel-print-input input)
     (unless (string-empty-p input) (push input spiel-input-history))
-    (catch 'reset
-      (catch 'turn-over
+    (catch 'spiel-reset
+      (catch 'spiel-turn-over
         (when-let ((result (spiel--do (or (setq spiel-last-parsed (spiel--tokenize input))
                                           input)))
                    ((stringp result)))
@@ -835,7 +835,7 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
   (sit-for 0.5)
   (kill-buffer spiel-buffer)
   (setq spiel-entities nil)
-  (ignore-errors (throw 'reset t)))
+  (ignore-errors (throw 'spiel-reset t)))
 
 (defun spiel-clear ()
   "Clear game window."
