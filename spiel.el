@@ -448,9 +448,10 @@ A positive integer replays N inputs.
 A negative integer replays all but the last N inputs.
 Any other value will replay all inputs."
   (interactive "P")
-  (if spiel--replaying
+  (if spiel--replaying ;; shouldn't happen, but just in case.
       "(Ignorning recursive reset)"
-    (let ((last-inputs (nreverse spiel-input-history))
+    (let ((last-inputs (cl-remove-if (lambda (input) (string-match-p "^reset" input))
+                                     (nreverse spiel-input-history)))
           (spiel--replaying replay)
           (spiel-want-typing (not replay)))
       (spiel-initialize)
