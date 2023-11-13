@@ -696,22 +696,23 @@ If ASK is non-nil, prompt user to disambiguate and return t."
 
 (defun spiel--describe-inventory (obj)
   "Describe OBJ's inventory."
-  (let* ((actorp (spiel-actor-p obj))
-         (name (spiel-entity-name obj))
-         (inventory (spiel-object-inventory 'in obj))
-         (load (spiel-object-inventory 'on obj)))
-    (if (or inventory load)
-        (concat
-         (when load
-           (let ((list (apply #'spiel-enumeration load)))
-             (if actorp (format "%s wearing %s." (spiel-linking-verb name) list)
-               (format "%s are on top of it." (spiel-capitalize list)))))
-         (when (and inventory load) "\n")
-         (when inventory
-           (concat (if actorp name "It")
-                   (if actorp (format " %s holding " (spiel-linking-verb name)) " contains ")
-                   (apply #'spiel-enumeration inventory) ".")))
-      (concat (when (not actorp) "It's ") "Empty."))))
+  (unless (spiel-flagged-p obj 'closed)
+    (let* ((actorp (spiel-actor-p obj))
+           (name (spiel-entity-name obj))
+           (inventory (spiel-object-inventory 'in obj))
+           (load (spiel-object-inventory 'on obj)))
+      (if (or inventory load)
+          (concat
+           (when load
+             (let ((list (apply #'spiel-enumeration load)))
+               (if actorp (format "%s wearing %s." (spiel-linking-verb name) list)
+                 (format "%s are on top of it." (spiel-capitalize list)))))
+           (when (and inventory load) "\n")
+           (when inventory
+             (concat (if actorp name "It")
+                     (if actorp (format " %s holding " (spiel-linking-verb name)) " contains ")
+                     (apply #'spiel-enumeration inventory) ".")))
+        (concat (when (not actorp) "It's ") "Empty.")))))
 
 (defun spiel-object-in-room-p (object &optional room)
   "Return t if OBJECT is in ROOM, otherwise nil."
