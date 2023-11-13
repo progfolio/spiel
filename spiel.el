@@ -835,7 +835,7 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
   (sit-for 0.5)
   (kill-buffer spiel-buffer)
   (setq spiel-entities nil)
-  (ignore-errors (throw 'turn-over t)))
+  (ignore-errors (throw 'reset t)))
 
 (defun spiel-clear ()
   "Clear game window."
