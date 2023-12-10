@@ -176,7 +176,7 @@ If ENTITY is non-nil it is available as `spiel-self' in substitutions."
   "Look PATTERN."
   (let ((name (spiel-entity-name spiel-player)))
     (pcase pattern
-      ((or '("inventory") `((or "in" "at") "inventory"))
+      ((or '("inventory") `(,(or "in" "at") "inventory"))
        (spiel--describe-inventory spiel-player))
       ('("away") (format "%s averts his eyes." name))
       ('("out") (format "%s jolts and says \"huh!?\"" name))
