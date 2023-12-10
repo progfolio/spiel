@@ -53,7 +53,8 @@
   :type (or 'float 'integer))
 
 (defcustom spiel-command-aliases
-  '(("^r \\(.*\\)" "reset \\1")
+  '(("^r$" "reset")
+    ("^r \\(.*\\)" "reset \\1")
     ("^q$" "quit")
     ("^i$" "describe inventory")
     ("^n$" "go north")
