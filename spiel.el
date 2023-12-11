@@ -850,13 +850,27 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
       (delete-region (point) (point-min)))
     "Screen cleared."))
 
-;;@TODO: make non-blocking.
-(defun spiel-wait-for-key ()
-  "Block until user presses key.
-This will still allow Emacs to redisplay."
-  (unless spiel--replaying
-    (while-no-input (while t (sit-for 1)))
-    (discard-input)))
+(defvar-local spiel--continuation nil)
+(defun spiel--continue ()
+  "Continue after waiting for key press."
+  (interactive)
+  (let ((inhibit-read-only t))
+    (remove-text-properties (point-min) (point-max) '(keymap t)))
+  (funcall spiel--continuation))
+
+(defvar spiel-wait-for-key-map
+  (let ((map (make-keymap)))
+    (set-char-table-range (nth 1 map) t #'spiel--continue)
+    map))
+
+;;@MAYBE: allow first arg to take specific keys and make bespoke keymap for those keys?
+(defmacro spiel-wait-for-key (&rest body)
+  "Wait for keypress, then execute BODY."
+  (declare (debug t))
+  `(if spiel--replaying (progn ,@body)
+     (setf spiel--continuation (lambda () ,@body))
+     (with-silent-modifications
+       (put-text-property (point-min) (point-max) 'keymap spiel-wait-for-key-map))))
 
 ;; ;;;###autoload
 ;; (defun spiel-load (file)
