@@ -47,7 +47,7 @@
   (pcase pattern
     ('nil (spiel-add-time spiel-time-wait-seconds) spiel-time-wait-message)
     (`(,timecode)
-     (if-let ((seconds (ignore-errors (spiel-timecode-to-seconds timecode))))
+     (if-let* ((seconds (ignore-errors (spiel-timecode-to-seconds timecode))))
          (let ((spiel-time-wait-seconds seconds)) (spiel--wait nil))
        (format "Can't wait %S" timecode)))))
 

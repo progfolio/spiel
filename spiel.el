@@ -155,22 +155,22 @@ If ENTITY is non-nil it is available as `spiel-self' in substitutions."
       (while (re-search-forward "%(" nil 'no-error)
         (backward-char)
         (when entity (setq spiel-self (spiel-ensure-entity entity)))
-        (when-let ((sexp (sexp-at-point))
-                   (replacement (format "%s" (save-excursion (eval sexp `((it . ,spiel-self)))))))
+        (when-let* ((sexp (sexp-at-point))
+                    (replacement (format "%s" (save-excursion (eval sexp `((it . ,spiel-self)))))))
           (delete-region (1- (point)) (progn (forward-sexp) (point)))
           (insert replacement)))
       (buffer-string))))
 
 (defun spiel-object-description (obj)
   "Return description of OBJ."
-  (when-let ((declared (spiel-object<-description (spiel-ensure-entity obj)))
-             (spiel-self obj))
+  (when-let* ((declared (spiel-object<-description (spiel-ensure-entity obj)))
+              (spiel-self obj))
     (spiel-interpolate (if (functionp declared) (funcall declared) declared) obj)))
 
 (defun spiel-object-details (obj)
   "Return OBJ details."
-  (when-let ((declared (spiel-object<-details (spiel-ensure-entity obj)))
-             (spiel-self obj))
+  (when-let* ((declared (spiel-object<-details (spiel-ensure-entity obj)))
+              (spiel-self obj))
     (spiel-interpolate (if (functionp declared) (funcall declared) declared) obj)))
 
 (defun spiel--look (pattern)
@@ -209,10 +209,10 @@ If ENTITY is non-nil it is available as `spiel-self' in substitutions."
            (concat
             (or (spiel-object-details obj)
                 (spiel-object-description obj))
-            (when-let (((not (spiel-context-get obj 'closed)))
-                       (inventory (spiel--describe-inventory obj))
-                       ;;@FIX: shouldn't be this ad-hoc
-                       ((not (equal inventory "It's Empty."))))
+            (when-let* (((not (spiel-context-get obj 'closed)))
+                        (inventory (spiel--describe-inventory obj))
+                        ;;@FIX: shouldn't be this ad-hoc
+                        ((not (equal inventory "It's Empty."))))
               (concat "\n" inventory)))
            ;;@FIX: Replace with non-developer message.
            (format "@TODO: give %s details or description" (spiel-object<-id obj)))))))
@@ -223,7 +223,7 @@ If ENTITY is non-nil it is available as `spiel-self' in substitutions."
   (pcase pattern
     ('nil "Where?")
     ;;@MAYBE: implement "back" to go to last location?
-    (_ (when-let ((destination (spiel--do pattern (spiel-object-room))))
+    (_ (when-let* ((destination (spiel--do pattern (spiel-object-room))))
          (progn
            (spiel-object-put 'in destination spiel-player)
            (run-hooks 'spiel-go-hook)
@@ -360,11 +360,11 @@ If ENTITY is non-nil it is available as `spiel-self' in substitutions."
   (unless (memq type '(question verb actor object room item))
     (signal 'wrong-type-argument `((or question verb actor object room item) ,type)))
   (cl-loop for key in '(:names :adjectives) do
-           (when-let ((declared (plist-get args key))
-                      ((not (listp declared))))
+           (when-let* ((declared (plist-get args key))
+                       ((not (listp declared))))
              (setq args (plist-put args key (list declared)))))
   (let* ((id (or (plist-get args :id)
-                 (when-let ((name (car (plist-get args :names))))
+                 (when-let* ((name (car (plist-get args :names))))
                    (intern (replace-regexp-in-string " +" "-" (downcase name))))
                  (error "No ID for %s %S" type args)))
          (found (cl-find id spiel-entities :key #'spiel-entity<-id)))
@@ -429,7 +429,7 @@ IF SPEECH is non-nil insert speaker prompt."
       (insert (spiel-prompt-string
                (if speech
                    (format "\n%s \"|\""
-                           (if-let ((avatar (spiel-actor<-avatar spiel-player)))
+                           (if-let* ((avatar (spiel-actor<-avatar spiel-player)))
                                (propertize " " 'display avatar)
                              (format "%s:" (car (spiel-actor<-names spiel-player)))))
                  (propertize "> " 'face 'spiel-command))
@@ -530,7 +530,7 @@ LOCATION is either the symbol `in` or `on`."
                        location
                        (spiel-object-noun-phrase object))))
            (when (and moved (or objects obj)) "\n")
-           (when-let ((remaining (append objects obj)))
+           (when-let* ((remaining (append objects obj)))
              (if (eq destination spiel-player)
                  "Inventory full."
                (format "Could not fit %s."
@@ -572,7 +572,7 @@ LOCATION is either the symbol `in` or `on`."
   "Print ACTOR dialogue STRING."
   (let* ((actor (spiel-ensure-entity actor))
          (indicator (or (spiel-actor<-avatar actor)
-                        (when-let ((name (spiel-entity-name actor)))
+                        (when-let* ((name (spiel-entity-name actor)))
                           (propertize (format "%s:" name) 'face '(:weight bold)))
                         ""))
          (avatar (propertize " " 'display indicator)))
@@ -587,11 +587,11 @@ If ENTITY is non-nil, set question asker."
     (when entity (setf (spiel-question<-asker q) (spiel-ensure-entity entity)))
     (setq spiel-pending-question q)
     (with-current-buffer spiel-buffer
-      (when-let ((question (propertize (spiel-question<-text q) 'face 'spiel-question))
-                 (speaker))
+      (when-let* ((question (propertize (spiel-question<-text q) 'face 'spiel-question))
+                  (speaker))
         (spiel-say speaker question)
         (spiel-print "\n"))
-      (when-let ((options (spiel-question<-options q)))
+      (when-let* ((options (spiel-question<-options q)))
         (spiel-print (propertize "  options:\n" 'face 'spiel-command-context))
         (mapc (lambda (option)
                 (spiel-print (format "  %d. %s\n"
@@ -622,16 +622,16 @@ If VERBLESS is non-nil, skip searching for a verb."
    for token in tokens do
    (cond
     ((member token spiel--articles) nil)
-    ((not (or verb verbless)) (when-let ((v (spiel--verb (downcase token))))
+    ((not (or verb verbless)) (when-let* ((v (spiel--verb (downcase token))))
                                 (setf (spiel-named<-as v) token
                                       verb (push v result))))
-    (t (if-let ((named (spiel-objects-matching token #'spiel-object<-names))
-                (possible
-                 (mapc (lambda (o) (setf (spiel-named<-as o) token))
-                       (if described (cl-intersection described named) named))))
+    (t (if-let* ((named (spiel-objects-matching token #'spiel-object<-names))
+                 (possible
+                  (mapc (lambda (o) (setf (spiel-named<-as o) token))
+                        (if described (cl-intersection described named) named))))
            (setq result (cons (if (cdr possible) possible (car possible)) result)
                  described nil)
-         (if-let ((possible (spiel-objects-matching token #'spiel-object<-adjectives)))
+         (if-let* ((possible (spiel-objects-matching token #'spiel-object<-adjectives)))
              (setq described possible)
            (push token result)))))
    finally return (nreverse (append (when described (list described)) result))))
@@ -688,7 +688,7 @@ If ASK is non-nil, prompt user to disambiguate and return t."
       (unless (spiel-object-p (car things)) (setq things (car things)))
       (if (= (length things) 1)
           (funcall cb (car things))
-        (if-let ((filtered (cl-remove-if-not (or filter #'always) things)))
+        (if-let* ((filtered (cl-remove-if-not (or filter #'always) things)))
             (spiel--disambiguate filtered nil callback (> (length filtered) 1))
           (funcall cb (list (spiel-object<-as things))))))
      (ask
@@ -739,11 +739,11 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
 
 (defun spiel--do (pattern &optional entity)
   "Do PATTERN with ENTITY."
-  (if-let ((entity)
-           (e (spiel-ensure-entity entity))
-           (spiel-self entity))
-      (when-let (((spiel-named-p e))
-                 (actions (spiel-named<-actions e)))
+  (if-let* ((entity)
+            (e (spiel-ensure-entity entity))
+            (spiel-self entity))
+      (when-let* (((spiel-named-p e))
+                  (actions (spiel-named<-actions e)))
         (funcall actions pattern))
     (spiel--default-actions pattern)))
 
@@ -752,13 +752,13 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
   (let* ((q (spiel-ensure-entity (car pattern)))
          (asker (spiel-question<-asker q))
          (options (spiel-question<-options q)))
-    (if-let (((eq asker 'prompt))
-             (response (string-join (cadr pattern) " ")))
+    (if-let* (((eq asker 'prompt))
+              (response (string-join (cadr pattern) " ")))
         (progn
           (setq response
-                (if-let ((n (ignore-errors (read response)))
-                         ((numberp n))
-                         (found (nth (1- n) options)))
+                (if-let* ((n (ignore-errors (read response)))
+                          ((numberp n))
+                          (found (nth (1- n) options)))
                     (cdr found)
                   (alist-get response options nil nil
                              (lambda (v k) (string-match-p k v))))
@@ -824,9 +824,9 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
     (unless (string-empty-p input) (push input spiel-input-history))
     (catch 'spiel-reset
       (catch 'spiel-turn-over
-        (when-let ((result (spiel--do (or (setq spiel-last-parsed (spiel--tokenize input))
-                                          input)))
-                   ((stringp result)))
+        (when-let* ((result (spiel--do (or (setq spiel-last-parsed (spiel--tokenize input))
+                                           input)))
+                    ((stringp result)))
           (spiel-print "\n" result "\n\n")))
       (spiel-insert-prompt (spiel-dialogue-p)))))
 
