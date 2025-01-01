@@ -26,6 +26,7 @@
 
 ;;
 (require 'cl-lib)
+(require 'text-property-search)
 (require 'spiel-structs)
 
 (defgroup spiel nil "Interactive Fiction Library." :group 'applications :prefix "spiel-")
@@ -861,9 +862,16 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
 (defvar spiel-wait-for-key-map
   (let ((map (make-keymap)))
     (set-char-table-range (nth 1 map) t #'spiel--continue)
+    (define-key map (kbd "<up>") #'spiel--continue)
+    (define-key map (kbd "<down>") #'spiel--continue)
+    (define-key map (kbd "<right>") #'spiel--continue)
+    (define-key map (kbd "<left>") #'spiel--continue)
+    (define-key map (kbd "C-g") #'keyboard-quit)
+    (define-key map (kbd "<escape>") #'spiel--continue)
     map))
 
 ;;@MAYBE: allow first arg to take specific keys and make bespoke keymap for those keys?
+;;@TOOD: specify keymap to set as first arg
 (defmacro spiel-wait-for-key (&rest body)
   "Wait for keypress, then execute BODY."
   (declare (debug t))
@@ -871,6 +879,62 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
      (setf spiel--continuation (lambda () ,@body))
      (with-silent-modifications
        (put-text-property (point-min) (point-max) 'keymap spiel-wait-for-key-map))))
+
+(defvar spiel-multiple-choice-indicator ">"
+  "Visual indicator for current multiple choice selection.")
+
+(defface spiel-multiple-choice-indicator
+  '((t (:inherit spiel-command :weight bold)))
+  "Face for printed user commands.")
+
+(defface spiel-multiple-choice-selection
+  '((t (:inherit spiel-command :weight bold)))
+  "Face for selected multiple choice option.")
+
+(defun spiel--print-multiple-choice (index &rest specs)
+  "Print choices with INDEX selected from SPECS."
+  (cl-loop
+   with beg = (point)
+   for i below (length specs)
+   for spec = (nth i specs)
+   do (spiel-print (concat (if (= i index)
+                               (propertize spiel-multiple-choice-indicator
+                                           'face 'spiel-multiple-choice-indicator)
+                             " ")
+                           (if-let* ((text (car spec))
+                                     ((= i index)))
+                               (propertize text 'face 'spiel-multiple-choice-selection)
+                             text)
+                           "\n"))
+   (with-silent-modifications
+     (add-text-properties beg (point) '(spiel-multiple-choice t)))))
+
+(defun spiel-multiple-choice (text index &rest specs)
+  "Print multiple choice TEXT menu at INDEX from SPECS."
+  (declare (indent 2))
+  (with-silent-modifications
+    (when-let* ((end (point))
+                (match (text-property-search-backward 'spiel-multiple-choice)))
+      (delete-region (prop-match-beginning match) end))
+    (let ((p (point)))
+      (spiel-print text)
+      (add-text-properties p (point) '(spiel-multiple-choice t rear-sticky t))))
+  (apply #'spiel--print-multiple-choice index specs)
+  (spiel-wait-for-key
+   (pcase last-input-event
+     ('return (eval (cdr (nth index specs))))
+     ((or 'up ?k)
+      (let (spiel-want-typing)
+        (apply #'spiel-multiple-choice text (max (cl-decf index) 0) specs)))
+     ((or 'down ?j)
+      (let (spiel-want-typing)
+        (apply #'spiel-multiple-choice text (min (cl-incf index) (1- (length specs))) specs)))
+     ((or 'escape ?q) (spiel-quit))
+     (?r
+      (spiel-multiple-choice "\nReset game?\n" 0
+        '("yes" . (spiel-reset))
+        `("no" . (apply #'spiel-multiple-choice ,index ',specs))))
+     (_ (let (spiel-want-typing) (apply #'spiel-multiple-choice text index specs))))))
 
 ;; ;;;###autoload
 ;; (defun spiel-load (file)
