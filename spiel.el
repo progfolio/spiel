@@ -940,9 +940,10 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
         (apply #'spiel-multiple-choice text (min (cl-incf index) (1- (length specs))) specs)))
      ((or 'escape ?q) (spiel-quit))
      (?r
-      (spiel-multiple-choice "\nReset game?\n" 0
+      (spiel-multiple-choice (concat "\n\n" (spiel-center "Reset game?") "\n") 0
         '("yes" . (spiel-reset))
-        `("no" . (apply #'spiel-multiple-choice ,index ',specs))))
+        `("no" . (let (spiel-want-typing)
+                   (apply #'spiel-multiple-choice ,text ,index ',specs)))))
      (_ (let (spiel-want-typing) (apply #'spiel-multiple-choice text index specs))))))
 
 ;; ;;;###autoload
