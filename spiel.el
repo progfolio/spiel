@@ -913,6 +913,11 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
    (with-silent-modifications
      (add-text-properties beg (point) '(spiel-multiple-choice t)))))
 
+(defun spiel-center (string)
+  "Return STRING padded to center in current window."
+  (concat (propertize " " 'display `(space :align-to ,(- (/ (window-width) 2) (length string))))
+          string))
+
 (defun spiel-multiple-choice (text index &rest specs)
   "Print multiple choice TEXT menu at INDEX from SPECS."
   (declare (indent 2))
