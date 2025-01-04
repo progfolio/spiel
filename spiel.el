@@ -918,33 +918,39 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
   (concat (propertize " " 'display `(space :align-to ,(- (/ (window-width) 2) (length string))))
           string))
 
-(defun spiel-multiple-choice (text index &rest specs)
-  "Print multiple choice TEXT menu at INDEX from SPECS."
+(defvar spiel-multiple-choice-prompt-formatter nil)
+(defun spiel-multiple-choice (prompt index &rest specs)
+  "Print multiple choice PROMPT at INDEX with SPECS."
   (declare (indent 2))
   (with-silent-modifications
     (when-let* ((end (point))
                 (match (text-property-search-backward 'spiel-multiple-choice)))
       (delete-region (prop-match-beginning match) end))
     (let ((p (point)))
-      (spiel-print text)
+      (spiel-print (if spiel-multiple-choice-prompt-formatter
+                       (funcall spiel-multiple-choice-prompt-formatter prompt)
+                     prompt))
       (add-text-properties p (point) '(spiel-multiple-choice t rear-sticky t))))
   (apply #'spiel--print-multiple-choice index specs)
-  (spiel-wait-for-key
-   (pcase last-input-event
-     ('return (eval (cdr (nth index specs))))
-     ((or 'up ?k)
-      (let (spiel-want-typing)
-        (apply #'spiel-multiple-choice text (max (cl-decf index) 0) specs)))
-     ((or 'down ?j)
-      (let (spiel-want-typing)
-        (apply #'spiel-multiple-choice text (min (cl-incf index) (1- (length specs))) specs)))
-     ((or 'escape ?q) (spiel-quit))
-     (?r
-      (spiel-multiple-choice (concat "\n\n" (spiel-center "Reset game?") "\n") 0
-        '("yes" . (spiel-reset))
-        `("no" . (let (spiel-want-typing)
-                   (apply #'spiel-multiple-choice ,text ,index ',specs)))))
-     (_ (let (spiel-want-typing) (apply #'spiel-multiple-choice text index specs))))))
+  (let ((pass `(let (spiel-want-typing) (apply #'spiel-multiple-choice ,prompt ,index ',specs))))
+    (spiel-wait-for-key
+     (pcase last-input-event
+       ('return (eval (cdr (nth index specs))))
+       ((or 'up ?k)
+        (let (spiel-want-typing)
+          (apply #'spiel-multiple-choice prompt (max (cl-decf index) 0) specs)))
+       ((or 'down ?j)
+        (let (spiel-want-typing)
+          (apply #'spiel-multiple-choice prompt (min (cl-incf index) (1- (length specs))) specs)))
+       ((or 'escape ?q)
+        (spiel-multiple-choice "Quit game?" 0
+          '("yes" . (spiel-quit))
+          `("no" . ,pass)))
+       (?r
+        (spiel-multiple-choice "Reset game?" 0
+          '("yes" . (spiel-reset))
+          `("no" . ,pass)))
+       (_ (eval pass))))))
 
 ;; ;;;###autoload
 ;; (defun spiel-load (file)
