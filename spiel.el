@@ -559,7 +559,7 @@ LOCATION is either the symbol `in` or `on`."
 
 (defun spiel-print (&rest args)
   "Print ARGS in the GAME's output buffer."
-  (setq args (mapcar (lambda (el) (propertize el 'read-only t)) (delq nil args)))
+  (setq args (mapcar (lambda (el) (propertize (spiel-interpolate el) 'read-only t)) (delq nil args)))
   (when spiel-print-cursor-timer (cancel-timer spiel-print-cursor-timer))
   (with-current-buffer (get-buffer-create spiel-buffer)
     (let ((inhibit-read-only t))
