@@ -151,6 +151,9 @@ If SINGULAR is non-nil, use the singular form."
 Each FUNCTION is available via the SHORTHAND in interpolated string syntax."
   :type 'alist)
 
+;;@TODO: Allow other sexp prefix characters, custom interpolation
+;; e.g. $(...) stylizes text, !(...) manipulates game state etc.
+;;@TODO: Recursive interpolation
 (defun spiel-interpolate (s &optional entity)
   "Perform substitutions on S.
 If ENTITY is non-nil it is available as `spiel-self' in substitutions."
