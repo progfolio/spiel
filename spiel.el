@@ -145,7 +145,8 @@ If SINGULAR is non-nil, use the singular form."
             (when last (concat "and " (spiel-determined-object-phrase last))))))
 
 (defcustom spiel-interpolation-shorthands
-  '((center . spiel-center))
+  '((center . spiel-center)
+    (style . spiel-stylize))
   "Alist of form (SHORTHAND FUNCTION).
 Each FUNCTION is available via the SHORTHAND in interpolated string syntax."
   :type 'alist)
@@ -925,6 +926,12 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
   "Return STRING padded to center in current window."
   (concat (propertize " " 'display `(space :align-to ,(- (/ (window-width) 2) (length string))))
           string))
+
+(defun spiel-stylize (string &rest props)
+  "Propertize STRING with PROPS."
+  (unless (zerop (mod (length props) 2))
+    (error "Uneven property list %S" props))
+  (propertize string 'face props))
 
 (defvar spiel-multiple-choice-prompt-formatter nil)
 (defun spiel-multiple-choice (prompt index &rest specs)
