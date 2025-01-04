@@ -1,6 +1,6 @@
 ;;; spiel-structs.el --- Spiel structures -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2023-2024  Nicholas Vollmer
+;; Copyright (C) 2023-2025  Nicholas Vollmer
 
 ;; Author: Nicholas Vollmer
 ;; Keywords:
