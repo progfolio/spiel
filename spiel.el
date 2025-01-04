@@ -144,6 +144,12 @@ If SINGULAR is non-nil, use the singular form."
             (when (> count 2) ", ")
             (when last (concat "and " (spiel-determined-object-phrase last))))))
 
+(defcustom spiel-interpolation-shorthands
+  '((center . spiel-center))
+  "Alist of form (SHORTHAND FUNCTION).
+Each FUNCTION is available via the SHORTHAND in interpolated string syntax."
+  :type 'alist)
+
 (defun spiel-interpolate (s &optional entity)
   "Perform substitutions on S.
 If ENTITY is non-nil it is available as `spiel-self' in substitutions."
@@ -161,6 +167,8 @@ If ENTITY is non-nil it is available as `spiel-self' in substitutions."
                   ((looking-back "\\\\%" (1- prev))))
             (delete-region (1- prev) prev)
           (when-let* ((sexp (sexp-at-point))
+                      ((always (when-let* ((shorthand (alist-get (car sexp) spiel-interpolation-shorthands)))
+                                 (setf (car sexp) shorthand))))
                       (replacement (format "%s" (save-excursion (eval sexp `((it . ,spiel-self)))))))
             (delete-region prev (progn (forward-sexp) (point)))
             (insert replacement))))
