@@ -884,7 +884,7 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
      (with-silent-modifications
        (put-text-property (point-min) (point-max) 'keymap spiel-wait-for-key-map))))
 
-(defvar spiel-multiple-choice-indicator ">"
+(defvar spiel-multiple-choice-indicator '(">" . " ")
   "Visual indicator for current multiple choice selection.")
 
 (defface spiel-multiple-choice-indicator
@@ -902,9 +902,9 @@ If TERMINATE is non-nil, do not recurse with catch-all case."
    for i below (length specs)
    for spec = (nth i specs)
    do (spiel-print (concat (if (= i index)
-                               (propertize spiel-multiple-choice-indicator
+                               (propertize (car spiel-multiple-choice-indicator)
                                            'face 'spiel-multiple-choice-indicator)
-                             " ")
+                             (cdr spiel-multiple-choice-indicator))
                            (if-let* ((text (car spec))
                                      ((= i index)))
                                (propertize text 'face 'spiel-multiple-choice-selection)
